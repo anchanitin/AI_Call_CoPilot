@@ -1,0 +1,18 @@
+[07:34:54] --- Call Started ---
+[07:34:59] [AI] Hello! This is Mia from The Restaurant. How can I assist you today? Would you like to make a reservation or ask about our menu?
+[07:35:11] [Caller] i d like to make a reservation for tomorrow.
+[07:35:13] [AI] Sure! What time would you like to reserve for tomorrow? And how many people will be in your party?
+[07:35:30] [Caller] say six people and 10 a.m. tomorrow.
+[07:35:34] [AI] Got it! That's a reservation for six people at 10:00 AM tomorrow. Could you please provide your email address?
+[07:35:51] [Caller] nick@the red gmail.com
+[07:35:53] [AI] I just need to confirm that. Is it nick@the red gmail.com? Could you please spell "the red" slowly for me?
+[07:36:10] [Caller] there is no red in my email.
+[07:36:11] [AI] Thank you for clarifying! So, your email is nick@gmail.com. Is that correct?
+[07:36:28] [Caller] yes that s correct.
+[07:36:30] [AI] Great! Now, could you please provide your phone number?
+[07:36:47] [Caller] 5 6 5 6 2 5 6 5 7.
+[07:36:48] [AI] Just to confirm, is your phone number 565-625-657? Could you please spell it out slowly?
+[07:37:06] [Caller] 9 2 4 6
+[07:37:08] [AI] Thank you for the correction! So, your phone number is 924-662-456? Could you please confirm that?
+[07:37:10] [Caller] 6 2 5 6.
+[07:37:12] [AI] Thank you for clarifying! So, your phone number is 625-625-656? Could you please confirm that?

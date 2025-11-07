@@ -1,0 +1,15 @@
+{
+  "name": "ai_call_copilot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@twilio/voice-sdk": "^2.16.0"
+  }
+}

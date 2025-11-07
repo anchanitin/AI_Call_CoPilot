@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Call CoPilot</title>
+
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script src="/static/lib/twilio.min.js"></script>
+  <script defer src="/static/dashboard.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">
+      <div class="brand-badge"><i class="fa-solid fa-headset"></i></div>
+      <div>
+        <div>AI Call CoPilot</div>
+        <div class="kicker">Real-time transcription • AI suggestions • QA insights</div>
+      </div>
+    </div>
+    <div class="header-cta">
+      <span class="badge" id="callStateBadge">idle</span>
+      <button class="toggle" id="themeToggle">
+        <i class="fa-solid fa-moon"></i> <span id="themeLabel">Dark</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card">
+    <div class="rowflex">
+      <div class="small">Conference: <strong id="conference">—</strong></div>
+      <div class="spacer"></div>
+      <button id="btnAccept" class="btn" style="display:none;"><i class="fa-solid fa-phone"></i> Accept</button>
+      <button id="btnDecline" class="btn danger" style="display:none;"><i class="fa-solid fa-phone-slash"></i> Decline</button>
+      <button id="btnHangup" class="btn secondary" disabled><i class="fa-solid fa-phone-slash"></i> Hang up</button>
+    </div>
+  </div>
+
+  <!-- Conversation Feed -->
+  <div class="card">
+    <h3><i class="fa-solid fa-comments"></i> Conversation Feed</h3>
+    <div id="chatFeed" class="chat-window">
+      {# <div class="msg caller">Caller: Waiting!</div> #}
+      {# <div class="msg ai">AI: Waiting!</div> #}
+    </div>
+  </div>
+
+  <!-- Events -->
+  <div class="card">
+    <h3><i class="fa-regular fa-clock"></i> Events</h3>
+    <div id="events" class="log"></div>
+  </div>
+
+  <!-- Report -->
+  <div class="card">
+    <h3><i class="fa-solid fa-chart-simple"></i> Call Quality Report</h3>
+    <div class="report">
+      <div class="scorebar">
+        <div class="bar"><div class="thumb" id="scoreThumb"></div></div>
+        <div class="label" id="scoreLabel">0/10</div>
+      </div>
+      <div id="reportBox" class="report" style="white-space: pre-line; font-size: 15px;">
+        Report will appear here after the call ends…
+      </div>
+    </div>
+  </div>
+</body>
+</html>
