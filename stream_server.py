@@ -97,18 +97,54 @@ def clean_repeated_words(text: str) -> str:
     cleaned = [w for i, w in enumerate(words) if i == 0 or w.lower() != words[i - 1].lower()]
     return " ".join(cleaned)
 
-# ===== MEANINGLESS TEXT FILTER =====
+
+
+# ===== MEANINGLESS TEXT FILTER (Improved) =====
 MEANINGLESS_PATTERNS = [
-    r"^\s*(hi|hello|thanks|thank you|okay|ok|yeah|yes|no|hmm|uh|ah|huh|bye|goodbye)\s*$"
+    r"^\s*(hi|hello|thanks|thank you|okay|ok|yeah|yes|no|hmm|uh|ah|huh|bye|goodbye|you)\s*$"
 ]
 
+def is_potential_contact_info(text: str) -> bool:
+    """Detect phone numbers, emails, or spelled sequences."""
+    # Email
+    if re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text):
+        return True
+    # Phone numbers (with or without spaces)
+    if re.search(r"\b\d{7,15}\b", text):
+        return True
+    # Spelled words like 'n-i-c-k' or 'm-y n-a-m-e'
+    if re.search(r"([a-zA-Z]-){2,}[a-zA-Z]", text):
+        return True
+    # Spoken digit sequences like "eight zero six seven"
+    if len(re.findall(r"\b(zero|one|two|three|four|five|six|seven|eight|nine)\b", text.lower())) >= 3:
+        return True
+    return False
+
+
 def is_meaningful_text(text: str) -> bool:
-    if not text or len(text.split()) < 3:
+    """Decide if a chunk is meaningful enough to process."""
+    if not text:
         return False
+
+    # If text contains contact info, treat as meaningful
+    if is_potential_contact_info(text):
+        return True
+
+    # Filter obvious meaningless one-word fillers
     for pat in MEANINGLESS_PATTERNS:
         if re.match(pat, text.lower()):
             return False
+
+    # Short but valid phrases (like "table for four")
+    words = text.split()
+    if len(words) < 2:
+        # keep if contains any number or @ symbol
+        if re.search(r"[@\d]", text):
+            return True
+        return False
+
     return True
+
 
 # ===== TRANSCRIBE + AI RESPONSE =====
 def transcribe_and_reply(wav: bytes):
@@ -316,3 +352,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, asyncio.CancelledError):
         print("🛑 Server stopped gracefully.")
+
