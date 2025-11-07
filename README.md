@@ -1,19 +1,20 @@
 **AI CALL COPILOT**
 
 
-AI Call CoPilot is a voice-call assistant that integrates Twilio Voice, Flask, and OpenAI to handle and assist with live phone conversations.
-It enables agents to accept incoming calls, view real-time transcriptions, see AI-generated suggestions, and optionally take over the call manually — all through a sleek, browser-based dashboard.
+
+* AI Call CoPilot is a voice-call assistant that integrates Twilio Voice, Flask, and OpenAI to handle and assist with live phone conversations.
+* It enables agents to accept incoming calls, view real-time transcriptions, see AI-generated suggestions, and optionally take over the call manually — all through a sleek, browser-based dashboard.
 
 
 **FEATURES**
 
 
-• Twilio Voice Integration – Accept or decline incoming calls directly from the web dashboard
-• Real-Time Speech Recognition – Streams and transcribes caller speech using Whisper-based AI
-• AI Conversation Suggestions – Displays AI-generated, context-aware responses in real time
-• Takeover Mode – Allows the human agent to seamlessly speak in place of the AI
-• Automated Call Quality Reports – Generates an AI-evaluated report at the end of each call
-• Modular Architecture – Clean separation between Flask backend, WebSocket stream server, and dashboard frontend
+* Twilio Voice Integration – Accept or decline incoming calls directly from the web dashboard.
+* Real-Time Speech Recognition – Streams and transcribes caller speech using Whisper-based AI.
+* AI Conversation Suggestions – Displays AI-generated, context-aware responses in real time.
+* Takeover Mode – Allows the human agent to seamlessly speak in place of the AI.
+* Automated Call Quality Reports – Generates an AI-evaluated report at the end of each call.
+* Modular Architecture – Clean separation between Flask backend, WebSocket stream server, and dashboard frontend.
 
 
 
@@ -42,17 +43,17 @@ AI\_Call\_CoPilot/
 
 -->templates/
 
-&nbsp;	-->dashboard.html → Agent dashboard UI
+&nbsp;		-->dashboard.html → Agent dashboard UI
 
 
 
 -->static/
 
-&nbsp;	-->css/ → Stylesheets
+&nbsp;		-->css/ → Stylesheets
 
-&nbsp;	-->js/ → Dashboard scripts
+&nbsp;		-->js/ → Dashboard scripts
 
-&nbsp;	-->tts/ → Temporary and permanent TTS files
+&nbsp;		-->tts/ → Temporary and permanent TTS files
 
 
 -->logs/ → Optional logs directory
@@ -73,15 +74,11 @@ AI\_Call\_CoPilot/
 **PREREQUISITES**
 
 
-Python 3.x installed
-
-Node.js and npm installed (only if using frontend packages)
-
-A Twilio account with a verified phone number
-
-OpenAI API key
-
-Ngrok, Cloudflared, or LocalTunnel for exposing local server to Twilio
+* Python 3.x installed
+* Node.js and npm installed (only if using frontend packages)
+* A Twilio account with a verified phone number
+* OpenAI API key
+* Ngrok, Cloudflared, or LocalTunnel for exposing local server to Twilio
 
 
 **ENVIRONMENT VARIABLES**
@@ -91,14 +88,16 @@ Create a file named .env in your project root with the following content:
 
 
 
-OPENAI\_API\_KEY=your\_openai\_api\_key
-TWILIO\_ACCOUNT\_SID=your\_twilio\_sid
-TWILIO\_AUTH\_TOKEN=your\_twilio\_auth\_token
-TWIML\_APP\_SID=your\_twiml\_app\_sid
-TWILIO\_NUMBER=your\_twilio\_phone\_number
-STREAM\_PORT=your port number
-FLASK\_SOCKET\_URL=http://your-flask-url/update
-PUBLIC\_BASE\_URL=https://your-public-url
+* OPENAI\_API\_KEY=your\_openai\_api\_key
+* TWILIO\_ACCOUNT\_SID=your\_twilio\_sid
+* TWILIO\_AUTH\_TOKEN=your\_twilio\_auth\_token
+* TWIML\_APP\_SID=your\_twiml\_app\_sid
+* TWILIO\_NUMBER=your\_twilio\_phone\_number
+* STREAM\_PORT=your port number
+* FLASK\_SOCKET\_URL=http://your-flask-url/update
+* PUBLIC\_BASE\_URL=https://your-public-url
+
+
 
 Note: The .env file should be ignored in .gitignore to prevent exposing sensitive credentials.
 
@@ -106,36 +105,39 @@ Note: The .env file should be ignored in .gitignore to prevent exposing sensitiv
 **SETUP INSTRUCTIONS**
 
 
-Step 1: Create and activate a virtual environment
+**Step 1:** Create and activate a virtual environment
 
 For Windows:
-python -m venv venv
+
+python -m venv venv 
+
 venv\\Scripts\\activate
 
 For Mac or Linux:
+
 python3 -m venv venv
+
 source venv/bin/activate
 
-Step 2: Install Python dependencies
+**Step 2:** Install Python dependencies
+
 pip install -r requirements.txt
 
-Step 3: (Optional) Install Node.js dependencies
+**Step 3:** (Optional) Install Node.js dependencies 
+
 npm install
 
-Step 4: Verify that your .env file is properly configured.
+**Step 4:** Verify that your .env file is properly configured.
 
 
 **RUNNING THE APPLICATION**
 
 
-Start the Flask app:
-python app.py
+* Start the Flask app: python app.py
+* Start the stream server in another terminal: python stream\_server.py
+* Open the dashboard: http://your-flask-url
 
-Start the stream server in another terminal:
-python stream\_server.py
 
-Open the dashboard:
-http://your-flask-url
 
 If Twilio needs to reach your local server, expose your Flask app publicly using Ngrok, Cloudflared, or LocalTunnel, and update the PUBLIC\_BASE\_URL value in your .env file accordingly.
 
@@ -143,27 +145,20 @@ If Twilio needs to reach your local server, expose your Flask app publicly using
 **TYPICAL CALL FLOW**
 
 
-The caller dials the Twilio number.
-
-Twilio triggers your Flask endpoint and opens a media stream.
-
-stream\_server.py receives audio, transcribes it, and sends it to the AI model.
-
-Flask pushes updates to the dashboard via Socket.IO.
-
-The agent sees both caller messages and AI-generated replies.
-
-The agent can take over the conversation at any time.
-
-When the call ends, a call quality report is automatically generated.
+* The caller dials the Twilio number.
+* Twilio triggers your Flask endpoint and opens a media stream.
+* stream\_server.py receives audio, transcribes it, and sends it to the AI model.
+* Flask pushes updates to the dashboard via Socket.IO.
+* The agent sees both caller messages and AI-generated replies.
+* The agent can take over the conversation at any time.
+* When the call ends, a call quality report is automatically generated.
 
 
 
 **ADDITIONAL NOTES**
 
 
-• node\_modules and venv are intentionally excluded from the repository.
-• All keys and credentials are stored securely in .env.
-• Update FLASK\_SOCKET\_URL in .env if the dashboard or Socket.IO endpoint changes.
-• Temporary audio files such as tts\_\*.mp3 are automatically ignored to keep the repository clean.
-
+* node\_modules and venv are intentionally excluded from the repository.
+* All keys and credentials are stored securely in .env.
+* Update FLASK\_SOCKET\_URL in .env if the dashboard or Socket.IO endpoint changes.
+* Temporary audio files such as tts\_\*.mp3 are automatically ignored to keep the repository clean.
