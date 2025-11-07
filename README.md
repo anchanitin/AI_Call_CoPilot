@@ -21,11 +21,11 @@
 **TECHNOLOGY STACK**
 
 
-**Backend**: Python (Flask, Flask-SocketIO)
-**Streaming**: WebSockets, Twilio Media Streams
-**AI**: OpenAI API (GPT, Whisper, and TTS models)
-**Frontend**: HTML, CSS, JavaScript
-**Optional**: Node.js for managing frontend dependencies
+* **Backend**: Python (Flask, Flask-SocketIO)
+* **Streaming**: WebSockets, Twilio Media Streams
+* **AI**: OpenAI API (GPT, Whisper, and TTS models)
+* **Frontend**: HTML, CSS, JavaScript
+* **Optional**: Node.js for managing frontend dependencies
 
 
 **PROJECT STRUCTURE**
