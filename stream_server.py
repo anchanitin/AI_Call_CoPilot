@@ -279,9 +279,21 @@ def build_quality_report_sync(conversation_text: str) -> str:
     if not conversation_text.strip():
         return "No conversation content available."
     prompt = (
-        "You are a call quality analyst evaluating a restaurant receptionist's call. "
-        "Write a structured report with: 1) Overall Score 2) Summary 3) Detailed Analysis 4) Strengths 5) Improvements. "
-        "Do not use markdown or asterisks."
+        "You are a senior QA evaluator analyzing a restaurant receptionist call between a customer and the AI. "
+        "Provide a clear, structured, business-grade report with the following sections:\n\n"
+        "1. Overall Score (out of 100)\n"
+        "2. Communication Metrics:\n"
+        "   - Greeting & Politeness (out of 10)\n"
+        "   - Active Listening (out of 10)\n"
+        "   - Clarity & Conciseness (out of 10)\n"
+        "   - Empathy & Tone (out of 10)\n"
+        "   - Accuracy of Information (out of 10)\n"
+        "3. Summary (2–3 sentences on how the receptionist performed overall)\n"
+        "4. Detailed Analysis (3–5 sentences explaining major highlights and issues)\n"
+        "5. Strengths (3 short bullet points)\n"
+        "6. Areas for Improvement (3 short bullet points)\n"
+        "7. AI Recommendations (specific actions to improve future interactions)\n\n"
+        "Avoid markdown, tables, or asterisks — just plain clean text."
     )
     try:
         resp = client.chat.completions.create(

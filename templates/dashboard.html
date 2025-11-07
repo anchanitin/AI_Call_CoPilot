@@ -43,10 +43,7 @@
   <!-- Conversation Feed -->
   <div class="card">
     <h3><i class="fa-solid fa-comments"></i> Conversation Feed</h3>
-    <div id="chatFeed" class="chat-window">
-      {# <div class="msg caller">Caller: Waiting!</div> #}
-      {# <div class="msg ai">AI: Waiting!</div> #}
-    </div>
+    <div id="chatFeed" class="chat-window"></div>
   </div>
 
   <!-- Events -->
@@ -59,11 +56,22 @@
   <div class="card">
     <h3><i class="fa-solid fa-chart-simple"></i> Call Quality Report</h3>
     <div class="report">
-      <div class="scorebar">
-        <div class="bar"><div class="thumb" id="scoreThumb"></div></div>
-        <div class="label" id="scoreLabel">0/10</div>
+      <!-- quick AI summary -->
+      <div class="ai-summary-card">
+        <h4>AI Summary</h4>
+        <p id="summaryText">Waiting for summary…</p>
       </div>
-      <div id="reportBox" class="report" style="white-space: pre-line; font-size: 15px;">
+
+      <!-- auto insights -->
+      <div id="insightBadges" class="insight-badges"></div>
+
+      <!-- metric breakdown -->
+      <div id="metricBreakdown" class="metric-container">
+        <div class="metric-empty">No detailed metrics yet.</div>
+      </div>
+
+      <!-- raw report text -->
+      <div id="reportBox" class="report-text" style="white-space: pre-line; font-size: 15px; margin-top:14px;">
         Report will appear here after the call ends…
       </div>
     </div>

@@ -12,9 +12,7 @@
     localStorage.setItem("theme", mode);
     root.style.transition = "background-color 0.4s ease, color 0.4s ease";
   }
-
   applyTheme(localStorage.getItem("theme") || "light");
-
   themeToggle.onclick = () => {
     const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
     applyTheme(next);
@@ -25,13 +23,7 @@
   function log(msg, level = "ok") {
     const time = new Date().toLocaleTimeString();
     const icon =
-      level === "ok"
-        ? "✅"
-        : level === "warn"
-        ? "⚠️"
-        : level === "err"
-        ? "❌"
-        : "ℹ️";
+      level === "ok" ? "✅" : level === "warn" ? "⚠️" : level === "err" ? "❌" : "ℹ️";
     const line = document.createElement("div");
     line.innerHTML = `[${time}] ${icon} ${msg}`;
     line.style.opacity = 0;
@@ -47,9 +39,10 @@
   const btnDecline = $("btnDecline");
   const btnHang = $("btnHangup");
   const stateBadge = $("callStateBadge");
-  const scoreThumb = $("scoreThumb");
-  const scoreLabel = $("scoreLabel");
   const reportBox = $("reportBox");
+  const summaryBox = $("summaryText");
+  const metricBox = $("metricBreakdown");
+  const badgeBox = $("insightBadges");
 
   function setState(state) {
     stateBadge.textContent = state;
@@ -64,38 +57,42 @@
   socket.on("connect", () => log("Socket connected", "ok"));
   socket.on("disconnect", () => log("Socket disconnected", "err"));
 
-  // ✅ NEW: real Twilio inbound call → clear feed
   socket.on("call_incoming", (data) => {
     chatFeed.innerHTML = "";
     reportBox.textContent = "Report will appear here after the call ends…";
-    setScore(0);
+    summaryBox.textContent = "Waiting for summary…";
+    metricBox.innerHTML = "";
+    badgeBox.innerHTML = "";
     const from = data && data.from ? data.from : "Unknown number";
     log(`Incoming call from ${from}`, "ok");
-    setState("in call"); // or "ringing" if you prefer
+    setState("in call");
   });
 
-  // live transcript + AI suggestions
   socket.on("update", (data) => {
     if (data.caller) appendMsg("caller", data.caller);
     if (data.suggestion) appendMsg("ai", data.suggestion);
   });
 
-  // final call-quality report
   socket.on("call_report", (data) => {
     const text = data.report || "No report available.";
     reportBox.textContent = text;
-    const score = extractScore(text);
-    setScore(score);
-    log(`Quality report received (${score.toFixed(1)}/10)`, "ok");
+
+    const summary = extractSummary(text);
+    summaryBox.textContent = summary || "Summary not found in report.";
+
+    const metrics = extractSubScores(text);
+    renderMetrics(metrics);
+    renderBadges(metrics);
+
+    log("Quality report received", "ok");
   });
 
-  // caller hung up / Twilio ended call
-  socket.on("call_ended", (data) => {
+  socket.on("call_ended", () => {
     log("Hanging up... (caller disconnected)", "warn");
     reset();
   });
 
-  // ---- UI MESSAGES ----
+  // ---- UI HELPERS ----
   function appendMsg(role, text) {
     const div = document.createElement("div");
     div.className = `msg ${role}`;
@@ -107,77 +104,107 @@
     chatFeed.scrollTop = chatFeed.scrollHeight;
   }
 
-  // ---- SCORE EXTRACTION (smart) ----
-  function extractScore(text) {
-    const match = text.match(/Overall\s*Score[:\s]*([\d.]+)\s*(?:\/\s*(\d+)|%|$)/i);
-    if (!match) return 0;
-
-    let value = parseFloat(match[1]);
-    const denominator = match[2] ? parseFloat(match[2]) : null;
-
-    if (denominator && denominator > 10) {
-      value = (value / denominator) * 10; // 80/100 → 8
-    } else if (text.includes("%")) {
-      value = value / 10; // 85% → 8.5
-    } else if (value > 10) {
-      value = value / 10; // 80 → 8
-    }
-
-    return Math.max(0, Math.min(10, parseFloat(value.toFixed(1))));
+  function extractSummary(text) {
+    const m = text.match(/Summary[:\s]+([\s\S]*?)(?=Detailed|Strengths|Areas|Improvements|AI Recommendations|$)/i);
+    return m ? m[1].trim() : "";
   }
 
-  // ---- SCORE BAR UI (Animated) ----
-  function setScore(n) {
-    const pct = Math.max(0, Math.min(100, (n / 10) * 100));
-    scoreThumb.style.transition = "left 0.8s cubic-bezier(0.4, 0, 0.2, 1)";
-    scoreThumb.style.left = `calc(${pct}% - 4px)`;
-    scoreLabel.textContent = `${n.toFixed(1)}/10`;
+  // ✅ Fixed normalization for “Overall Score: 85 out of 100” vs 10/10 mismatch
+  function extractSubScores(text) {
+    const metrics = {};
+    const regex = /([A-Za-z& ]{3,40}):\s*(\d{1,3})(?:\s*(?:out\s*of|\/)\s*(\d+))?/gi;
+    let match;
 
-    // if you added the extra score header elements, update them here
-    const scoreValue = document.getElementById("scoreValue");
-    const scoreRemark = document.getElementById("scoreRemark");
-    if (scoreValue && scoreRemark) {
-      scoreValue.textContent = n.toFixed(1);
-      scoreRemark.textContent =
-        n >= 9
-          ? "Outstanding"
-          : n >= 8
-          ? "Excellent"
-          : n >= 7
-          ? "Good"
-          : n >= 6
-          ? "Fair"
-          : "Needs Improvement";
+    while ((match = regex.exec(text)) !== null) {
+      const label = match[1].trim();
+      let val = parseFloat(match[2]);
+      const denom = match[3] ? parseFloat(match[3]) : null;
+
+      // Normalize to /10 scale
+      if (denom && denom > 10) val = (val / denom) * 10;
+      else if (text.includes("%") && val > 10) val = val / 10;
+      else if (val > 10) val = val / 10;
+
+      // Preserve proper precision
+      metrics[label] = Math.min(10, Math.max(0, parseFloat(val.toFixed(1))));
     }
+
+    // 🧩 If overall missing, average others
+    if (!metrics["Overall Score"] && Object.keys(metrics).length > 0) {
+      const vals = Object.entries(metrics)
+        .filter(([k]) => !/overall/i.test(k))
+        .map(([_, v]) => v);
+      if (vals.length) {
+        metrics["Overall Score"] = parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1));
+      }
+    }
+
+    return metrics;
   }
 
-  // ---- Twilio Device Integration (browser side) ----
-  let device = null;
-  let conn = null;
+  // ✅ Highlight and align overall row
+  function renderMetrics(metrics) {
+    metricBox.innerHTML = "";
+    const entries = Object.entries(metrics);
+    if (!entries.length) {
+      metricBox.innerHTML = "<div class='metric-empty'>No detailed metrics provided.</div>";
+      return;
+    }
+    entries.forEach(([key, val]) => {
+      const row = document.createElement("div");
+      row.className = "metric-bar";
+      if (/overall/i.test(key)) row.classList.add("metric-overall"); // highlight row
+      row.innerHTML = `
+        <span class="metric-label">${key}</span>
+        <div class="metric-progress"><div style="width:${val * 10}%"></div></div>
+        <span class="metric-score">${val.toFixed(1)}/10 (${(val * 10).toFixed(0)}%)</span>
+      `;
+      metricBox.appendChild(row);
+    });
+  }
 
+  function renderBadges(metrics) {
+    badgeBox.innerHTML = "";
+    const entries = Object.entries(metrics);
+    if (!entries.length) return;
+    entries.forEach(([key, val]) => {
+      const badge = document.createElement("span");
+      badge.className = "insight-badge";
+      if (val >= 9) {
+        badge.textContent = `🌟 Excellent ${key}`;
+        badge.classList.add("good");
+      } else if (val >= 7) {
+        badge.textContent = `👍 Good ${key}`;
+      } else {
+        badge.textContent = `⚠️ Improve ${key}`;
+        badge.classList.add("warn");
+      }
+      badgeBox.appendChild(badge);
+    });
+  }
+
+  // ---- TWILIO DEVICE ----
+  let device = null, conn = null;
   async function initTwilio() {
     try {
       const res = await fetch("/token?identity=agent");
       const data = await res.json();
-      device = new Twilio.Device(data.token, {
-        codecPreferences: ["opus", "pcmu"],
-        enableRingingState: true,
-      });
+      device = new Twilio.Device(data.token, { codecPreferences: ["opus", "pcmu"], enableRingingState: true });
       await device.register();
       log("Twilio Device ready", "ok");
       setState("idle");
 
-      // this path is for browser calls; keep it
       device.on("incoming", (c) => {
         conn = c;
         btnAccept.style.display = "inline-block";
         btnDecline.style.display = "inline-block";
         setState("ringing");
 
-        // reset UI for new call
         chatFeed.innerHTML = "";
         reportBox.textContent = "Report will appear here after the call ends…";
-        setScore(0);
+        summaryBox.textContent = "Waiting for summary…";
+        metricBox.innerHTML = "";
+        badgeBox.innerHTML = "";
 
         btnAccept.onclick = () => {
           log("Accepting call...", "ok");
@@ -187,7 +214,6 @@
           btnHang.disabled = false;
           setState("in call");
         };
-
         btnDecline.onclick = () => {
           log("Declined call", "warn");
           c.reject();
