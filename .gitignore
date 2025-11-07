@@ -17,6 +17,14 @@ yarn-error.log
 # === Logs ===
 logs/
 *.log
+conversation_log.txt
+
+# === Temporary TTS Audio (ignored, except key permanent ones) ===
+static/tts/tts_*.mp3
+static/tts/tts_*.wav
+!static/tts/greeting.mp3
+!static/tts/ai_reply.mp3
+!static/tts/ai_reply.wav
 
 # === IDE / OS ===
 .vscode/

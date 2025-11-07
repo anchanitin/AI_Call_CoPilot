@@ -1,2 +1,0 @@
-[11:30:29] --- Call Started ---
-[11:30:32] [AI] Hello! This is Mia from The Restaurant. How can I assist you today? Would you like to make a reservation or ask about our menu?
