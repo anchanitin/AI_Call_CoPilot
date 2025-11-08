@@ -105,7 +105,7 @@ def pcm16k_to_wav(pcm16k: bytes) -> bytes:
 def normalize_contact_info(text: str) -> str:
     t = text.lower()
     t = t.replace(" at ", "@").replace(" dot ", ".").replace(" underscore ", "_").replace(" dash ", "-")
-    t = t.replace(" space ", "").replace(" period ", ".").replace(" comma ", ",")
+    t = t.replace(" space ", " ").replace(" period ", ".").replace(" comma ", ",")
     t = re.sub(r"\bcom(\s*)com\b", "com", t)
     t = re.sub(r"[^0-9@._a-zA-Z+-]", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
@@ -121,7 +121,7 @@ def clean_repeated_words(text: str) -> str:
 
 # ===== MEANINGLESS TEXT FILTER =====
 MEANINGLESS_PATTERNS = [
-    r"^\s*(hi|hello|thanks|thank you|okay|ok|yeah|yes|no|hmm|uh|ah|huh|bye|goodbye|you)\s*$"
+    r"^\s*(hi|thanks|thank you|okay|ok|yeah|yes|no|hmm|uh|ah|huh|bye|goodbye|you)\s*$"
 ]
 
 def is_potential_contact_info(text: str) -> bool:
@@ -178,7 +178,7 @@ def transcribe_and_reply(wav: bytes):
                         "You handle calls for reservations, timings, and menu questions. "
                         "Keep track of what the caller already said and never ask the same question again. "
                         "Be warm, concise, and conversational. Use short natural English sentences. "
-                        "If the caller gives reservation details, confirm clearly, then ask for their email and phone "
+                        "If the caller gives reservation details, confirm clearly, then ask for their name, email and phone "
                         "to finalize. Ask them to spell each slowly and confirm what you understood. "
                         "If unclear, ask only for that portion to be repeated. Once both are clear, confirm everything, "
                         "then say: 'Thank you! Your reservation is confirmed. We look forward to seeing you.' "
