@@ -50,7 +50,7 @@ def voice():
     # AI greets caller automatically
     # vr.say("Hello, this is the AI assistant. How can I help you today?")
     vr.redirect("/hold")
-
+    # print(str(vr).strip())
     return Response(str(vr), mimetype="text/xml")
 
 @app.route("/hold", methods=["GET", "POST"])

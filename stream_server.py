@@ -121,7 +121,7 @@ def clean_repeated_words(text: str) -> str:
 
 # ===== MEANINGLESS TEXT FILTER =====
 MEANINGLESS_PATTERNS = [
-    r"^\s*(hi|thanks|thank you|okay|ok|yeah|yes|no|hmm|uh|ah|huh|bye|goodbye|you)\s*$"
+    r"^\s*(hi|thanks|thank you.|thank you|okay|ok|yeah|yes|no|hmm|uh|ah|huh|bye|goodbye|you)\s*$"
 ]
 
 def is_potential_contact_info(text: str) -> bool:
@@ -169,7 +169,7 @@ def transcribe_and_reply(wav: bytes):
     try:
         comp = client.chat.completions.create(
             model="gpt-4o-mini",
-            temperature=0.3,
+            temperature=0.7,
             messages=[
                 {
                     "role": "system",
