@@ -135,6 +135,9 @@ At call end → AI generates a Call Quality Report
 
 ## 🧾 Additional Notes
 node_modules and venv are intentionally excluded from the repository.
+
 All keys and credentials are stored securely in .env.
+
 Update FLASK_SOCKET_URL in .env if the dashboard or Socket.IO endpoint changes.
+
 Temporary audio files such as tts_*.mp3 are automatically ignored to keep the repository clean.
