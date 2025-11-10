@@ -7,14 +7,24 @@ It enables agents to **accept incoming calls**, view **real-time transcriptions*
 
 ## 🚀 Project Overview
 
-The goal of this project is to build an **AI-powered communication system** capable of:
+The goal of this project is to build a **fully autonomous AI-powered communication system** capable of:
 - Managing **incoming and outgoing calls** through Twilio Voice  
 - Transcribing calls in **real time** using **Whisper AI**  
-- Generating **context-aware suggestions** using GPT  
-- Allowing agents to **seamlessly take control** when needed  
-- Producing **automated call quality reports** post-call  
+- Using **GPT reasoning** to generate intelligent and context-aware responses  
+- **Speaking directly to the caller** through **OpenAI Text-to-Speech (TTS)**
+- Displaying all call activity, transcriptions, and AI responses on a **real-time agent dashboard**
+- Generating **automated call summaries and quality reports** at the end of each call
 
-This project demonstrates the integration of **real-time AI inference**, **telephony streaming**, and **web dashboard visualization**, representing a full-stack **AI + Voice Engineering** solution.
+Unlike traditional AI assist tools, the **AI Call CoPilot** operates **independently without agent intervention.**
+The human agent **monitors the conversation** through the dashboard but does not interact with the caller.
+All speech, logic, and flow are driven by the **AI in real time** — making it a complete **end-to-end Voice AI Communication System.**
+
+This project showcases a **full-stack AI + Voice Engineering architecture**, combining:
+
+- **Real-time AI inference (Whisper, GPT, TTS)**
+- **Low-latency media streaming via WebSockets**
+- **Twilio Voice orchestration**
+- **Live analytics dashboard using Flask + SocketIO**
 
 ---
 
@@ -25,7 +35,8 @@ This project demonstrates the integration of **real-time AI inference**, **telep
 ## 🧱 Architecture
 
 **Data & Audio Flow:**  
-`Caller → Twilio Voice → Flask (TwiML Endpoint) → WebSocket Stream Server → OpenAI (Whisper + GPT + TTS) → Agent Dashboard`
+`Caller → Twilio Voice → Flask (TwiML Endpoint) → WebSocket Stream Server → OpenAI (Whisper + GPT + TTS) → Caller (via Twilio Audio Stream)`
+`↳ Agent Dashboard (read-only view of transcription, AI responses, and call quality)`
 
 **Tools & Components:**
 - **Twilio Voice API** – Handles call routing and audio streaming  
@@ -117,27 +128,19 @@ If Twilio needs to access your local app, expose it using Ngrok, Cloudflared, or
 
 ## 🧩 Typical call flow
 
-Caller dials your Twilio number
-
-Twilio triggers the Flask endpoint and opens a media stream
-
-stream_server.py receives audio → sends to Whisper → generates transcript
-
-GPT produces a smart AI response
-
-Flask pushes updates to the dashboard via Socket.IO
-
-Agent can monitor, respond, or take over the conversation
-
-At call end → AI generates a Call Quality Report
+- **Caller dials** the Twilio number.
+- Twilio triggers a **Flask TwiML endpoint** that establishes the WebSocket connection.
+- The **WebSocket Stream Server** receives live audio data from the caller.
+- The audio is sent to **OpenAI Whisper** for **speech-to-text transcription**.
+- **GPT reasoning** generates a real-time AI reply based on conversation context.
+- The reply text is converted to speech using **OpenAI TTS**.
+- The **TTS audio** is streamed **back to Twilio**, allowing the AI to **speak directly to the caller.**
+- Meanwhile, the dashboard **displays** the full transcription, responses, and AI call analysis in real time.
 
 ---
 
 ## 🧾 Additional Notes
-node_modules and venv are intentionally excluded from the repository.
-
-All keys and credentials are stored securely in .env.
-
-Update FLASK_SOCKET_URL in .env if the dashboard or Socket.IO endpoint changes.
-
-Temporary audio files such as tts_*.mp3 are automatically ignored to keep the repository clean.
+- node_modules and venv are intentionally excluded from the repository.
+- All keys and credentials are stored securely in .env.
+- Update FLASK_SOCKET_URL in .env if the dashboard or Socket.IO endpoint changes.
+- Temporary audio files such as tts_*.mp3 are automatically ignored to keep the repository clean.
