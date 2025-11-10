@@ -1,7 +1,6 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
-  // ---- THEME TOGGLE ----
   const root = document.documentElement;
   const themeToggle = $("themeToggle");
   const themeLabel = $("themeLabel");
@@ -18,7 +17,6 @@
     applyTheme(next);
   };
 
-  // ---- LOGGING ----
   const logEl = $("events");
   function log(msg, level = "ok") {
     const time = new Date().toLocaleTimeString();
@@ -33,7 +31,6 @@
     logEl.scrollTop = logEl.scrollHeight;
   }
 
-  // ---- ELEMENTS ----
   const chatFeed = $("chatFeed");
   const btnAccept = $("btnAccept");
   const btnDecline = $("btnDecline");
@@ -44,6 +41,15 @@
   const metricBox = $("metricBreakdown");
   const badgeBox = $("insightBadges");
 
+  const detailedAnalysisBox = $("detailedAnalysisBox");
+  const detailedAnalysisText = $("detailedAnalysisText");
+  const strengthsBox = $("strengthsBox");
+  const strengthsText = $("strengthsText");
+  const areasBox = $("areasBox");
+  const areasText = $("areasText");
+  const recommendationsBox = $("recommendationsBox");
+  const recommendationsText = $("recommendationsText");
+
   function setState(state) {
     stateBadge.textContent = state;
     stateBadge.className = "badge fade";
@@ -52,17 +58,18 @@
     else stateBadge.classList.add("state-idle");
   }
 
-  // ---- SOCKET IO ----
   const socket = io();
   socket.on("connect", () => log("Socket connected", "ok"));
   socket.on("disconnect", () => log("Socket disconnected", "err"));
 
   socket.on("call_incoming", (data) => {
     chatFeed.innerHTML = "";
+    reportBox.style.display = "block";
     reportBox.textContent = "Report will appear here after the call ends…";
     summaryBox.textContent = "Waiting for summary…";
     metricBox.innerHTML = "";
     badgeBox.innerHTML = "";
+    hideAllSections();
     const from = data && data.from ? data.from : "Unknown number";
     log(`Incoming call from ${from}`, "ok");
     setState("in call");
@@ -75,14 +82,17 @@
 
   socket.on("call_report", (data) => {
     const text = data.report || "No report available.";
-    reportBox.textContent = text;
-
     const summary = extractSummary(text);
     summaryBox.textContent = summary || "Summary not found in report.";
 
     const metrics = extractSubScores(text);
     renderMetrics(metrics);
     renderBadges(metrics);
+
+    const foundAny = renderDetailedSections(text);
+    // hide raw report if detailed boxes are filled
+    reportBox.style.display = foundAny ? "none" : "block";
+    if (!foundAny) reportBox.textContent = text;
 
     log("Quality report received", "ok");
   });
@@ -92,7 +102,6 @@
     reset();
   });
 
-  // ---- UI HELPERS ----
   function appendMsg(role, text) {
     const div = document.createElement("div");
     div.className = `msg ${role}`;
@@ -105,44 +114,32 @@
   }
 
   function extractSummary(text) {
-    const m = text.match(/Summary[:\s]+([\s\S]*?)(?=Detailed|Strengths|Areas|Improvements|AI Recommendations|$)/i);
+    const m = text.match(/Summary[:\s]+([\s\S]*?)(?=Detailed|Strengths|Areas|AI Recommendations|$)/i);
     return m ? m[1].trim() : "";
   }
 
-  // ✅ Fixed normalization for “Overall Score: 85 out of 100” vs 10/10 mismatch
   function extractSubScores(text) {
     const metrics = {};
     const regex = /([A-Za-z& ]{3,40}):\s*(\d{1,3})(?:\s*(?:out\s*of|\/)\s*(\d+))?/gi;
     let match;
-
     while ((match = regex.exec(text)) !== null) {
       const label = match[1].trim();
       let val = parseFloat(match[2]);
       const denom = match[3] ? parseFloat(match[3]) : null;
-
-      // Normalize to /10 scale
       if (denom && denom > 10) val = (val / denom) * 10;
-      else if (text.includes("%") && val > 10) val = val / 10;
       else if (val > 10) val = val / 10;
-
-      // Preserve proper precision
       metrics[label] = Math.min(10, Math.max(0, parseFloat(val.toFixed(1))));
     }
-
-    // 🧩 If overall missing, average others
     if (!metrics["Overall Score"] && Object.keys(metrics).length > 0) {
       const vals = Object.entries(metrics)
         .filter(([k]) => !/overall/i.test(k))
         .map(([_, v]) => v);
-      if (vals.length) {
+      if (vals.length)
         metrics["Overall Score"] = parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1));
-      }
     }
-
     return metrics;
   }
 
-  // ✅ Highlight and align overall row
   function renderMetrics(metrics) {
     metricBox.innerHTML = "";
     const entries = Object.entries(metrics);
@@ -153,7 +150,7 @@
     entries.forEach(([key, val]) => {
       const row = document.createElement("div");
       row.className = "metric-bar";
-      if (/overall/i.test(key)) row.classList.add("metric-overall"); // highlight row
+      if (/overall/i.test(key)) row.classList.add("metric-overall");
       row.innerHTML = `
         <span class="metric-label">${key}</span>
         <div class="metric-progress"><div style="width:${val * 10}%"></div></div>
@@ -183,8 +180,58 @@
     });
   }
 
-  // ---- TWILIO DEVICE ----
-  let device = null, conn = null;
+  function hideAllSections() {
+    [detailedAnalysisBox, strengthsBox, areasBox, recommendationsBox].forEach((el) => {
+      el.style.display = "none";
+    });
+  }
+
+  // ---- NEW: Render four separate boxes ----
+  function renderDetailedSections(text) {
+    let found = false;
+    const sections = {
+      detailed: text.match(/Detailed Analysis[:\s]+([\s\S]*?)(?=Strengths|Areas|AI Recommendations|$)/i),
+      strengths: text.match(/Strengths[:\s]+([\s\S]*?)(?=Areas|AI Recommendations|$)/i),
+      areas: text.match(/Areas for Improvement[:\s]+([\s\S]*?)(?=AI Recommendations|$)/i),
+      recommendations: text.match(/AI Recommendations[:\s]+([\s\S]*)/i),
+    };
+
+    function formatText(t) {
+      if (!t) return "";
+      // convert dash bullets into <ul><li> items
+      const lines = t
+        .split(/\n|-/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+      if (lines.length > 1) return "<ul><li>" + lines.join("</li><li>") + "</li></ul>";
+      return `<p>${t}</p>`;
+    }
+
+    if (sections.detailed && sections.detailed[1].trim()) {
+      detailedAnalysisText.innerHTML = formatText(sections.detailed[1].trim());
+      detailedAnalysisBox.style.display = "block";
+      found = true;
+    }
+    if (sections.strengths && sections.strengths[1].trim()) {
+      strengthsText.innerHTML = formatText(sections.strengths[1].trim());
+      strengthsBox.style.display = "block";
+      found = true;
+    }
+    if (sections.areas && sections.areas[1].trim()) {
+      areasText.innerHTML = formatText(sections.areas[1].trim());
+      areasBox.style.display = "block";
+      found = true;
+    }
+    if (sections.recommendations && sections.recommendations[1].trim()) {
+      recommendationsText.innerHTML = formatText(sections.recommendations[1].trim());
+      recommendationsBox.style.display = "block";
+      found = true;
+    }
+    return found;
+  }
+
+  let device = null,
+    conn = null;
   async function initTwilio() {
     try {
       const res = await fetch("/token?identity=agent");
@@ -199,13 +246,13 @@
         btnAccept.style.display = "inline-block";
         btnDecline.style.display = "inline-block";
         setState("ringing");
-
         chatFeed.innerHTML = "";
+        reportBox.style.display = "block";
         reportBox.textContent = "Report will appear here after the call ends…";
         summaryBox.textContent = "Waiting for summary…";
         metricBox.innerHTML = "";
         badgeBox.innerHTML = "";
-
+        hideAllSections();
         btnAccept.onclick = () => {
           log("Accepting call...", "ok");
           c.accept();

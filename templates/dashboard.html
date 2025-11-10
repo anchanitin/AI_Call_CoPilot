@@ -36,7 +36,11 @@
       <div class="spacer"></div>
       <button id="btnAccept" class="btn" style="display:none;"><i class="fa-solid fa-phone"></i> Accept</button>
       <button id="btnDecline" class="btn danger" style="display:none;"><i class="fa-solid fa-phone-slash"></i> Decline</button>
-      <button id="btnHangup" class="btn secondary" disabled><i class="fa-solid fa-phone-slash"></i> Hang up</button>
+      <!--
+      <button id="btnHangup" class="btn secondary" disabled>
+        <i class="fa-solid fa-phone-slash"></i> Hang up
+      </button>
+      -->
     </div>
   </div>
 
@@ -48,29 +52,56 @@
 
   <!-- Events -->
   <div class="card">
-    <h3><i class="fa-regular fa-clock"></i> Events</h3>
+    <h3 onclick="this.nextElementSibling.classList.toggle('hidden')">
+      <i class="fa-regular fa-clock"></i> Events
+    </h3>
     <div id="events" class="log"></div>
   </div>
 
   <!-- Report -->
   <div class="card">
-    <h3><i class="fa-solid fa-chart-simple"></i> Call Quality Report</h3>
+    <h3><i class="fa-solid fa-chart-column"></i> Call Quality Report</h3>
     <div class="report">
-      <!-- quick AI summary -->
+
+      <!-- AI Summary -->
       <div class="ai-summary-card">
         <h4>AI Summary</h4>
         <p id="summaryText">Waiting for summary…</p>
       </div>
 
-      <!-- auto insights -->
+      <!-- Insight badges -->
       <div id="insightBadges" class="insight-badges"></div>
 
-      <!-- metric breakdown -->
+      <!-- Metric breakdown -->
       <div id="metricBreakdown" class="metric-container">
         <div class="metric-empty">No detailed metrics yet.</div>
       </div>
 
-      <!-- raw report text -->
+      <!-- Detailed Analysis -->
+      <div class="ai-summary-card" id="detailedAnalysisBox" style="display:none;">
+        <h4>Detailed Analysis</h4>
+        <div id="detailedAnalysisText"></div>
+      </div>
+
+      <!-- Strengths -->
+      <div class="ai-summary-card" id="strengthsBox" style="display:none;">
+        <h4>Strengths</h4>
+        <div id="strengthsText"></div>
+      </div>
+
+      <!-- Areas for Improvement -->
+      <div class="ai-summary-card" id="areasBox" style="display:none;">
+        <h4>Areas for Improvement</h4>
+        <div id="areasText"></div>
+      </div>
+
+      <!-- AI Recommendations -->
+      <div class="ai-summary-card" id="recommendationsBox" style="display:none;">
+        <h4>AI Recommendations</h4>
+        <div id="recommendationsText"></div>
+      </div>
+
+      <!-- Raw report text fallback -->
       <div id="reportBox" class="report-text" style="white-space: pre-line; font-size: 15px; margin-top:14px;">
         Report will appear here after the call ends…
       </div>

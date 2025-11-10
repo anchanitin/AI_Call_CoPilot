@@ -1,3 +1,4 @@
+/* ========== ROOT VARIABLES ========== */
 :root {
   --accent: #6f42c1;
   --accent-600: #5c35a5;
@@ -16,9 +17,14 @@
   --border: #2a2f3a;
   --shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
   --gradient: linear-gradient(135deg, #8b5cf6, #5b21b6);
+  --accent: #8b5cf6;
+  --accent-600: #6f42c1;
 }
 
-/* ----------- Base Layout ----------- */
+#btnHangup { display: none !important; }
+
+
+/* ========== BASE LAYOUT ========== */
 body {
   margin: 0;
   padding: 24px;
@@ -28,13 +34,19 @@ body {
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 
+/* ========== HEADER ========== */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  background: var(--gradient);
+  padding: 18px 22px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  color: #fff;
+  box-shadow: var(--shadow);
+  animation: fadeIn 0.6s ease;
 }
-
 .brand {
   display: flex;
   align-items: center;
@@ -42,22 +54,19 @@ body {
   font-weight: 800;
   font-size: 22px;
 }
-
 .kicker {
   font-size: 12px;
-  opacity: 0.7;
+  opacity: 0.8;
 }
-
 .header-cta {
   display: flex;
   gap: 10px;
   align-items: center;
 }
-
 .toggle {
   border: 1px solid transparent;
-  background: rgba(111, 66, 193, 0.1);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
   border-radius: 999px;
   padding: 6px 14px;
   cursor: pointer;
@@ -65,10 +74,13 @@ body {
   display: flex;
   gap: 6px;
   align-items: center;
+  transition: background 0.3s ease;
 }
-
+.toggle:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
 .brand-badge {
-  background: var(--gradient);
+  background: rgba(255, 255, 255, 0.15);
   color: white;
   border-radius: 10px;
   padding: 10px;
@@ -78,19 +90,24 @@ body {
 }
 .brand-badge:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(111, 66, 193, 0.25);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
 }
 
+/* ========== CARDS ========== */
 .card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 18px;
   box-shadow: var(--shadow);
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   transition: background-color 0.4s ease, box-shadow 0.3s ease;
+  animation: fadeIn 0.5s ease;
 }
-
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(111, 66, 193, 0.15);
+}
 .rowflex {
   display: flex;
   align-items: center;
@@ -100,20 +117,20 @@ body {
   flex: 1;
 }
 
-/* ----------- Badges / state ----------- */
+/* ========== BADGES & STATES ========== */
 .badge {
-  background: rgba(111, 66, 193, 0.08);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
   border-radius: 999px;
   padding: 4px 14px;
   font-size: 12px;
-  border: 1px solid rgba(111, 66, 193, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
-.state-ringing { background: rgba(255, 193, 7, 0.2); }
-.state-live { background: rgba(40, 167, 69, 0.2); }
-.state-idle { background: rgba(108, 117, 125, 0.2); }
+.state-ringing { background: rgba(255, 193, 7, 0.3); }
+.state-live { background: rgba(40, 167, 69, 0.3); }
+.state-idle { background: rgba(108, 117, 125, 0.3); }
 
-/* ----------- Buttons ----------- */
+/* ========== BUTTONS ========== */
 .btn {
   background: var(--accent);
   color: white;
@@ -131,7 +148,7 @@ body {
 .btn.secondary { background: #6c757d; }
 .btn.danger { background: #dc3545; }
 
-/* ----------- Chat Window ----------- */
+/* ========== CHAT WINDOW ========== */
 .chat-window {
   background: var(--card);
   border: 1px solid var(--border);
@@ -144,9 +161,7 @@ body {
   gap: 10px;
   scroll-behavior: smooth;
   box-shadow: var(--shadow);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
-
 .msg {
   max-width: 70%;
   padding: 10px 14px;
@@ -157,9 +172,7 @@ body {
   animation: fadeIn 0.3s ease;
   transition: background 0.3s ease, transform 0.2s ease;
 }
-.msg:hover {
-  transform: translateY(-1px);
-}
+.msg:hover { transform: translateY(-1px); }
 .msg.caller {
   align-self: flex-start;
   background: #e9e9ec;
@@ -177,17 +190,17 @@ body {
   border-top-right-radius: 4px;
 }
 
-/* Scrollbar */
+/* ========== SCROLLBAR ========== */
 .chat-window::-webkit-scrollbar { width: 6px; }
 .chat-window::-webkit-scrollbar-thumb {
   background: var(--accent);
   border-radius: 10px;
 }
 :root[data-theme="dark"] .chat-window::-webkit-scrollbar-thumb {
-  background: #6f42c1;
+  background: #8b5cf6;
 }
 
-/* ----------- Event Log ----------- */
+/* ========== EVENT LOG ========== */
 .log {
   font-family: monospace;
   background: rgba(0, 0, 0, 0.02);
@@ -197,14 +210,15 @@ body {
   max-height: 200px;
   overflow-y: auto;
   box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.05);
-  transition: background 0.3s ease, color 0.3s ease;
 }
 :root[data-theme="dark"] .log {
   background: #1d1f27;
   color: #ddd;
 }
+.hidden { display: none; }
+h3 { cursor: pointer; }
 
-/* ----------- Report Wrapper ----------- */
+/* ========== REPORT SECTION ========== */
 .report {
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -213,6 +227,7 @@ body {
   box-shadow: var(--shadow);
   line-height: 1.7;
   font-size: 15px;
+  animation: fadeIn 0.6s ease-in-out;
 }
 .report-text {
   white-space: pre-line;
@@ -221,27 +236,33 @@ body {
   margin-top: 14px;
 }
 
-/* ----------- AI Summary card ----------- */
+/* ========== AI SUMMARY BOXES ========== */
 .ai-summary-card {
   background: rgba(111, 66, 193, 0.08);
   border-left: 4px solid var(--accent);
   border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  animation: fadeIn 0.5s ease;
 }
 .ai-summary-card h4 {
-  margin: 0 0 4px 0;
+  margin: 0 0 6px 0;
   font-size: 15px;
   font-weight: 600;
   color: var(--accent-600);
 }
-.ai-summary-card p {
+.ai-summary-card p,
+.ai-summary-card ul {
   margin: 0;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+.ai-summary-card ul {
+  margin-left: 18px;
+  list-style-type: disc;
 }
 
-/* ----------- Insight badges ----------- */
+/* ========== INSIGHT BADGES ========== */
 .insight-badges {
   display: flex;
   flex-wrap: wrap;
@@ -254,6 +275,7 @@ body {
   border-radius: 8px;
   padding: 4px 10px;
   font-size: 12px;
+  animation: popIn 0.4s ease;
 }
 .insight-badge.good {
   background: rgba(40, 167, 69, 0.08);
@@ -263,8 +285,12 @@ body {
   background: rgba(220, 53, 69, 0.08);
   border-color: rgba(220, 53, 69, 0.2);
 }
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 
-/* ----------- Metric container ----------- */
+/* ========== METRIC CONTAINER ========== */
 .metric-container {
   display: flex;
   flex-direction: column;
@@ -274,7 +300,6 @@ body {
   border-radius: 10px;
   background: rgba(111, 66, 193, 0.02);
   animation: fadeIn 0.6s ease-in-out;
-  transition: background 0.3s ease;
 }
 :root[data-theme="dark"] .metric-container {
   background: rgba(139, 92, 246, 0.05);
@@ -282,20 +307,11 @@ body {
 .metric-container:hover {
   background: rgba(111, 66, 193, 0.05);
 }
-
-/* ----------- Metric rows ----------- */
-.metric-empty {
-  font-size: 13px;
-  opacity: 0.7;
-}
 .metric-bar {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
-}
-.metric-bar:last-child {
-  margin-bottom: 0;
 }
 .metric-label {
   width: 160px;
@@ -311,7 +327,7 @@ body {
 .metric-progress div {
   height: 8px;
   background: linear-gradient(90deg, #7f5fff, #00b894);
-  transition: width 0.6s ease-in-out;
+  transition: width 1s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 .metric-score {
   width: 70px;
@@ -319,8 +335,6 @@ body {
   font-weight: 600;
   font-size: 12px;
 }
-
-/* ---- Highlighted Overall Score ---- */
 .metric-overall {
   background: rgba(111, 66, 193, 0.04);
   border-radius: 8px;
@@ -334,13 +348,13 @@ body {
   background: rgba(139, 92, 246, 0.1);
 }
 
-/* ----------- Animations ----------- */
+/* ========== ANIMATIONS ========== */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ----------- Small screen ----------- */
+/* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
   body { padding: 14px; }
   .metric-label { width: 130px; }
