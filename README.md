@@ -28,15 +28,12 @@ This project showcases a **full-stack AI + Voice Engineering architecture**, com
 
 ---
 
-<img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="https://github.com/anchanitin/AI_Call_CoPilot/blob/main/Architecture_%26_Output_Screenshots/Workflow.png" />
-
----
-
 ## 🧱 Architecture
 
 **Data & Audio Flow:**  
-`Caller → Twilio Voice → Flask (TwiML Endpoint) → WebSocket Stream Server → OpenAI (Whisper + GPT + TTS) → Caller (via Twilio Audio Stream)`
-`↳ Agent Dashboard (read-only view of transcription, AI responses, and call quality)`
+<img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="https://github.com/anchanitin/AI_Call_CoPilot/blob/main/Architecture_%26_Output_Screenshots/Workflow.png" />
+
+---
 
 **Tools & Components:**
 - **Twilio Voice API** – Handles call routing and audio streaming  
