@@ -18,7 +18,7 @@ This project demonstrates the integration of **real-time AI inference**, **telep
 
 ---
 
-<img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="https://github.com/user-attachments/assets/3a2b4c22-8f61-4c9f-9e58-90c8a1bcd888" />
+<img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="https://github.com/anchanitin/AI_Call_CoPilot/blob/main/Architecture_%26_Output_Screenshots/Workflow.png" />
 
 ---
 
