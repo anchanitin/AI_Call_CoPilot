@@ -42,7 +42,7 @@ def voice():
     socketio.emit("call_incoming", {"from": from_number, "callSid": call_sid})
 
     vr = VoiceResponse()
-
+    vr.play(f"{PUBLIC_BASE_URL}/static/tts/greeting.mp3")
     # Stream caller audio to your AI stream server
     start = vr.start()
     start.stream(url=STREAM_SERVER_URL, track="inbound_track")
