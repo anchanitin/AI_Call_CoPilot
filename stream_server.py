@@ -259,14 +259,14 @@ async def process_audio(data: bytes):
             asyncio.create_task(play_tts(ai))
 
 # ===== GREETING =====
-async def greet_caller():
-    greeting = (
-        "Hello! This is Mia from The Restaurant. "
-        "How can I assist you today? Would you like to make a reservation or ask about our menu?"
-    )
-    await play_tts(greeting)
-    append_log("AI", greeting)
-    context.append({"role": "assistant", "content": greeting})
+# async def greet_caller():
+#     greeting = (
+#         "Hello! This is Mia from The Restaurant. "
+#         "How can I assist you today? Would you like to make a reservation or ask about our menu?"
+#     )
+#     await play_tts(greeting)
+#     append_log("AI", greeting)
+#     context.append({"role": "assistant", "content": greeting})
 
 # ===== REPORT GENERATION =====
 def build_quality_report_sync(conversation_text: str) -> str:
@@ -312,6 +312,51 @@ async def make_report():
     except Exception as e:
         print("⚠ Report post failed:", e)
 
+
+# ===== Warm up models =====
+
+
+async def warm_up_models():
+    print("🔥 Warming up Whisper, GPT, and TTS...")
+
+    # 1) Whisper warmup
+    try:
+        silent_pcm = b"\x00" * 32000  # 1 second of silence
+        wav = pcm16k_to_wav(silent_pcm)
+        client.audio.transcriptions.create(
+            model="whisper-1",
+            file=("warmup.wav", io.BytesIO(wav), "audio/wav")
+        )
+    except Exception as e:
+        print("Whisper warm-up skipped:", e)
+
+    # 2) GPT warmup
+    try:
+        client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": "warmup"}]
+        )
+    except Exception as e:
+        print("GPT warm-up skipped:", e)
+
+    # 3) TTS warmup
+    try:
+        speech = client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice="nova",
+            input="warming up"
+        )
+        # Don't save it — just read
+        speech.read()
+    except Exception as e:
+        print("TTS warm-up skipped:", e)
+
+    print("🔥 Warmup complete.")
+
+
+
+
+
 # ===== TWILIO STREAM =====
 async def handle_twilio(ws):
     global CURRENT_CALL_SID
@@ -326,7 +371,8 @@ async def handle_twilio(ws):
                 CURRENT_CALL_SID = data["start"]["callSid"]
                 print(f"📞 Call started: {CURRENT_CALL_SID}")
                 cleanup_tts()  # 🧹 Clear old temporary TTS files
-                await greet_caller()
+                # await greet_caller()
+                asyncio.create_task(warm_up_models())
             elif evt == "media":
                 b64 = data["media"].get("payload", "")
                 if b64:
