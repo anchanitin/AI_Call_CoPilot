@@ -42,6 +42,7 @@ def voice():
     socketio.emit("call_incoming", {"from": from_number, "callSid": call_sid})
 
     vr = VoiceResponse()
+    # Play greeting message
     vr.play(f"{PUBLIC_BASE_URL}/static/tts/greeting.mp3")
     # Stream caller audio to your AI stream server
     start = vr.start()
@@ -50,7 +51,7 @@ def voice():
     # AI greets caller automatically
     # vr.say("Hello, this is the AI assistant. How can I help you today?")
     vr.redirect("/hold")
-    # print(str(vr).strip())
+    
     return Response(str(vr), mimetype="text/xml")
 
 @app.route("/hold", methods=["GET", "POST"])
@@ -110,3 +111,5 @@ def status_callback():
 if __name__ == "__main__":
     print("🚀 Flask + SocketIO running on port 5000")
     socketio.run(app, host="0.0.0.0", port=5000)
+
+

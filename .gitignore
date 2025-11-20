@@ -25,6 +25,7 @@ static/tts/tts_*.wav
 !static/tts/greeting.mp3
 !static/tts/ai_reply.mp3
 !static/tts/ai_reply.wav
+static/recordings/
 
 # === IDE / OS ===
 .vscode/
