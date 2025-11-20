@@ -1,11 +1,11 @@
-import os, io, json, base64, wave, audioop, asyncio, websockets, aiohttp, time, re, glob
+import os, io, json, base64, wave, audioop, asyncio, websockets, aiohttp, time, re, glob, requests
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
 from twilio.rest import Client as TwilioClient
-from pydub import AudioSegment  # for merging recordings
-import requests  # for Twilio + Deepgram HTTP calls
+from pydub import AudioSegment 
+
 
 # ===== Load Environment =====
 load_dotenv()
