@@ -4,8 +4,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
 from twilio.rest import Client as TwilioClient
-from pydub import AudioSegment  # ⭐ ADDED
-import requests  # ⭐ ADDED
+from pydub import AudioSegment  # for merging recordings
+import requests  # for Twilio + Deepgram HTTP calls
 
 # ===== Load Environment =====
 load_dotenv()
@@ -20,6 +20,9 @@ FLASK_REPORT_URL = f"{PUBLIC_BASE_URL}/report"
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 
+# NEW: Deepgram API key
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
+
 # ===== CLIENTS =====
 client = OpenAI(api_key=OPENAI_API_KEY)
 twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -33,6 +36,10 @@ CURRENT_CALL_SID = None
 
 # ===== TTS CLEANUP =====
 def cleanup_tts():
+    """
+    Delete all temporary TTS files (tts_*.mp3) before a new call starts,
+    but preserve permanent audio assets like greeting.mp3 and ai_reply.mp3.
+    """
     tts_dir = os.path.join("static", "tts")
     try:
         if not os.path.exists(tts_dir):
@@ -42,7 +49,7 @@ def cleanup_tts():
         deleted = 0
         for f in files:
             base = os.path.basename(f).lower()
-            if base.startswith("tts_"):
+            if base.startswith("tts_"):  # only remove generated temporary files
                 os.remove(f)
                 deleted += 1
         print(f"🧹 Cleaned up {deleted} temporary TTS files (permanent files preserved).")
@@ -63,8 +70,6 @@ def cleanup_recordings():
         print(f"🗑 Deleted {deleted} old call recordings.")
     except Exception as e:
         print(f"⚠ Recording cleanup failed: {e}")
-
-
 
 # ===== RESTAURANT CONTEXT =====
 RESTAURANT_INFO = """
@@ -158,29 +163,63 @@ def is_meaningful_text(text: str) -> bool:
         return False
     return True
 
-# ===== TRANSCRIBE + AI RESPONSE =====
+# ===== TRANSCRIBE + AI RESPONSE (Deepgram instead of Whisper) =====
 def transcribe_and_reply(wav: bytes):
     global context
+
+    # ---- Deepgram transcription ----
     try:
-        tr = client.audio.transcriptions.create(
-            model="whisper-1",
-            language="en",
-            file=("chunk.wav", io.BytesIO(wav), "audio/wav")
+        if not DEEPGRAM_API_KEY:
+            print("⚠ Deepgram API key missing (DEEPGRAM_API_KEY).")
+            return "", ""
+
+        headers = {
+            "Authorization": f"Token {DEEPGRAM_API_KEY}",
+            "Content-Type": "audio/wav",
+        }
+        params = {
+            "model": "nova-3",       # Deepgram model
+            "smart_format": "true",  # punctuation, formatting
+            "language": "en-US",
+        }
+
+        dg_resp = requests.post(
+            "https://api.deepgram.com/v1/listen",
+            headers=headers,
+            params=params,
+            data=wav,
+            timeout=10,
         )
-        text = clean_repeated_words(tr.text.strip())
+        dg_resp.raise_for_status()
+        dg_json = dg_resp.json()
+
+        # Deepgram JSON shape: results.channels[0].alternatives[0].transcript
+        text = dg_json.get("results", {}) \
+                      .get("channels", [{}])[0] \
+                      .get("alternatives", [{}])[0] \
+                      .get("transcript", "") \
+                      .strip()
+
+        text = clean_repeated_words(text)
         text = normalize_contact_info(text)
+
     except Exception as e:
-        print("⚠ Whisper Error:", e)
+        print("⚠ Deepgram STT Error:", e)
+        return "", ""
+
+    if not text:
         return "", ""
 
     if not is_meaningful_text(text):
         print(f"🪶 Ignored meaningless chunk: '{text}'")
         return "", ""
 
+    # ---- Log + context ----
     append_log("Caller", text)
     context.append({"role": "user", "content": text})
     short_context = context[-50:]
 
+    # ---- GPT reply (unchanged) ----
     try:
         comp = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -274,7 +313,7 @@ async def process_audio(data: bytes):
             asyncio.create_task(play_tts(ai))
 
 # ===================================================================
-# ⭐⭐ RECORDING DOWNLOAD + MERGE (ADDED WITHOUT CHANGING ANY EXISTING LINE)
+#  RECORDING DOWNLOAD + MERGE (unchanged)
 # ===================================================================
 
 def download_twilio_recording(call_sid):
@@ -299,7 +338,6 @@ def download_twilio_recording(call_sid):
     except Exception as e:
         print("⚠ Error downloading recording:", e)
         return None
-
 
 def merge_recordings(greeting_path, twilio_path, output_path):
     try:
@@ -359,28 +397,45 @@ async def make_report():
     except Exception as e:
         print("⚠ Report post failed:", e)
 
-# ===== Warm up models =====
+# ===== Warm up models (Deepgram + GPT + TTS) =====
 async def warm_up_models():
-    print("🔥 Warming up Whisper, GPT, and TTS...")
+    print("🔥 Warming up Deepgram, GPT, and TTS...")
 
+    # Deepgram warmup with 1s of silence
     try:
-        silent_pcm = b"\x00" * 32000
-        wav = pcm16k_to_wav(silent_pcm)
-        client.audio.transcriptions.create(
-            model="whisper-1",
-            file=("warmup.wav", io.BytesIO(wav), "audio/wav")
-        )
-    except:
-        pass
+        if DEEPGRAM_API_KEY:
+            silent_pcm = b"\x00" * 32000  # 1 sec @ 16k
+            wav = pcm16k_to_wav(silent_pcm)
+            headers = {
+                "Authorization": f"Token {DEEPGRAM_API_KEY}",
+                "Content-Type": "audio/wav",
+            }
+            params = {
+                "model": "nova-3",
+                "language": "en-US",
+            }
+            requests.post(
+                "https://api.deepgram.com/v1/listen",
+                headers=headers,
+                params=params,
+                data=wav,
+                timeout=10,
+            )
+        else:
+            print("⚠ Deepgram warmup skipped: DEEPGRAM_API_KEY not set.")
+    except Exception as e:
+        print("Deepgram warmup skipped:", e)
 
+    # GPT warmup
     try:
         client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": "warmup"}]
         )
-    except:
-        pass
+    except Exception as e:
+        print("GPT warmup skipped:", e)
 
+    # TTS warmup
     try:
         speech = client.audio.speech.create(
             model="gpt-4o-mini-tts",
@@ -388,8 +443,8 @@ async def warm_up_models():
             input="warming up"
         )
         speech.read()
-    except:
-        pass
+    except Exception as e:
+        print("TTS warmup skipped:", e)
 
     print("🔥 Warmup complete.")
 
@@ -410,11 +465,15 @@ async def handle_twilio(ws):
                 cleanup_tts()
                 cleanup_recordings()
 
-                greeting_text = "Hello! This is Mia from The Restaurant. How can I assist you today? Would you like to make a reservation or ask about our menu?"
+                greeting_text = (
+                    "Hello! This is Mia from The Restaurant. "
+                    "How can I assist you today? Would you like to make a reservation or ask about our menu?"
+                )
                 append_log("AI", greeting_text)
                 context.append({"role": "assistant", "content": greeting_text})
                 asyncio.create_task(update_dashboard("", greeting_text))
-                # ⭐ Start recording
+
+                # Start Twilio recording via REST API
                 try:
                     twilio_client.calls(CURRENT_CALL_SID).recordings.create()
                     print("🎙 Recording started via REST API.")
@@ -438,10 +497,10 @@ async def handle_twilio(ws):
 
                 await make_report()
 
-                # ⭐ Download Twilio recording
+                # Download Twilio recording
                 raw_recording = download_twilio_recording(CURRENT_CALL_SID)
 
-                # ⭐ Merge with greeting.mp3
+                # Merge with greeting.mp3
                 if raw_recording:
                     greeting_path = "static/tts/greeting.mp3"
                     final_path = f"static/recordings/final_{CURRENT_CALL_SID}.mp3"
