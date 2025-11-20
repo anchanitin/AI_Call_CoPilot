@@ -1,6 +1,6 @@
 # 🤖 AI Call CoPilot
 
-AI Call CoPilot is a **voice-call assistant** that integrates **Twilio Voice**, **Flask**, and **OpenAI** to handle and assist with **live phone conversations**.  
+AI Call CoPilot is a **voice-call assistant** that integrates **Twilio Voice**, **Flask**, **Deepgram** and **OpenAI** to handle and assist with **live phone conversations**.  
 It enables agents to **accept incoming calls**, view **real-time transcriptions**, see **AI-generated suggestions**, and optionally **take over the call manually** — all through a sleek, browser-based dashboard.
 
 ---
@@ -8,9 +8,10 @@ It enables agents to **accept incoming calls**, view **real-time transcriptions*
 ## 🚀 Project Overview
 
 The goal of this project is to build a **fully autonomous AI-powered communication system** capable of:
-- Managing **incoming and outgoing calls** through Twilio Voice  
-- Transcribing calls in **real time** using **Whisper AI**  
-- Using **GPT reasoning** to generate intelligent and context-aware responses  
+
+- Managing **incoming and outgoing calls** through Twilio Voice
+- Transcribing calls in **real time** using **Deepgram**
+- Using **GPT reasoning** to generate intelligent and context-aware responses
 - **Speaking directly to the caller** through **OpenAI Text-to-Speech (TTS)**
 - Displaying all call activity, transcriptions, and AI responses on a **real-time agent dashboard**
 - Generating **automated call summaries and quality reports** at the end of each call
@@ -21,7 +22,7 @@ All speech, logic, and flow are driven by the **AI in real time** — making it 
 
 This project showcases a **full-stack AI + Voice Engineering architecture**, combining:
 
-- **Real-time AI inference (Whisper, GPT, TTS)**
+- **Real-time AI inference (Deepgram, GPT, TTS)**
 - **Low-latency media streaming via WebSockets**
 - **Twilio Voice orchestration**
 - **Live analytics dashboard using Flask + SocketIO**
@@ -36,28 +37,29 @@ This project showcases a **full-stack AI + Voice Engineering architecture**, com
 ---
 
 **Tools & Components:**
-- **Twilio Voice API** – Handles call routing and audio streaming  
-- **Flask Backend** – Hosts endpoints, TwiML responses, and dashboard updates  
-- **Stream Server (WebSocket)** – Processes audio, transcription, and AI logic  
-- **OpenAI (Whisper, GPT, TTS)** – Provides transcription, response generation, and speech synthesis  
-- **Frontend (HTML, CSS, JS)** – Displays real-time updates, AI replies, and agent actions  
+
+- **Twilio Voice API** – Handles call routing and audio streaming
+- **Flask Backend** – Hosts endpoints, TwiML responses, and dashboard updates
+- **Stream Server (WebSocket)** – Processes audio, transcription, and AI logic
+- **Deepgram** - Provides transcription
+- **OpenAI (GPT, TTS)** – Response generation, and speech synthesis
+- **Frontend (HTML, CSS, JS)** – Displays real-time updates, AI replies, and agent actions
 
 ---
 
 ## ⚙️ Technology Stack
 
-| Layer | Tools / Libraries |
-|-------|-------------------|
-| **Backend** | Python (Flask,Flask-SocketIO) |
-| **Streaming** | WebSockets, Twilio Media Streams |
-| **AI Models** | OpenAI Whisper, GPT, TTS |
-| **Frontend** | HTML, CSS, JavaScript |
-| **Optional** | Node.js for managing frontend dependencies |
+| Layer         | Tools / Libraries                          |
+| ------------- | ------------------------------------------ |
+| **Backend**   | Python (Flask,Flask-SocketIO)              |
+| **Streaming** | WebSockets, Twilio Media Streams           |
+| **AI Models** | Deepgram, OpenAI GPT, TTS                  |
+| **Frontend**  | HTML, CSS, JavaScript                      |
+| **Optional**  | Node.js for managing frontend dependencies |
 
 ---
 
 ## 📂 Repository Structure
-
 
 ```
 AI_Call_CoPilot/
@@ -81,15 +83,18 @@ AI_Call_CoPilot/
 ```
 
 ---
+
 ## ⚙️ Setup & Installation
 
 ### 1️⃣ Clone the Repository
+
 ```bash
 git clone reponame
 cd AI_Call_CoPilot
 ```
 
 ### 2️⃣ Create a Virtual Environment
+
 ```bash
 python -m venv venv
 venv\Scripts\activate    #(Mac or Linux : source venv/bin/activate)
@@ -98,9 +103,12 @@ npm install(optional)
 ```
 
 ### 3️⃣ Configure Environment Variables
+
 Add your credentials in `.env` or environment variables:
+
 ```bash
 OPENAI_API_KEY=your_openai_api_key
+DEEPGRAM_API_KEY=your_deepgram_api_key
 TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
 TWIML_APP_SID=your_twiml_app_sid
@@ -111,6 +119,7 @@ PUBLIC_BASE_URL=https://your-public-url
 ```
 
 ### 4️⃣ Run Application
+
 ```bash
 # Terminal 1 - Start Flask backend
 python app.py
@@ -119,6 +128,7 @@ python app.py
 python stream_server.py
 
 ```
+
 If Twilio needs to access your local app, expose it using Ngrok, Cloudflared, or LocalTunnel, and update the PUBLIC_BASE_URL in .env.
 
 ---
@@ -128,7 +138,7 @@ If Twilio needs to access your local app, expose it using Ngrok, Cloudflared, or
 - **Caller dials** the Twilio number.
 - Twilio triggers a **Flask TwiML endpoint** that establishes the WebSocket connection.
 - The **WebSocket Stream Server** receives live audio data from the caller.
-- The audio is sent to **OpenAI Whisper** for **speech-to-text transcription**.
+- The audio is sent to **Deepgram** for **speech-to-text transcription**.
 - **GPT reasoning** generates a real-time AI reply based on conversation context.
 - The reply text is converted to speech using **OpenAI TTS**.
 - The **TTS audio** is streamed **back to Twilio**, allowing the AI to **speak directly to the caller.**
@@ -137,7 +147,8 @@ If Twilio needs to access your local app, expose it using Ngrok, Cloudflared, or
 ---
 
 ## 🧾 Additional Notes
+
 - node_modules and venv are intentionally excluded from the repository.
 - All keys and credentials are stored securely in .env.
 - Update FLASK_SOCKET_URL in .env if the dashboard or Socket.IO endpoint changes.
-- Temporary audio files such as tts_*.mp3 are automatically ignored to keep the repository clean.
+- Temporary audio files such as tts\_\*.mp3 are automatically ignored to keep the repository clean.
