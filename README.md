@@ -32,7 +32,7 @@ This project showcases a **full-stack AI + Voice Engineering architecture**, com
 ## 🧱 Architecture
 
 **Data & Audio Flow:**  
-<img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="https://github.com/anchanitin/AI_Call_CoPilot/blob/main/Architecture_%26_Output_Screenshots/Workflow.png" />
+<img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="Architecture_&_Output_Screenshots/Wrokflow.png" />
 
 ---
 
