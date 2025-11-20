@@ -234,8 +234,9 @@ def transcribe_and_reply(wav: bytes):
                         "And also be sure to only provide information that is in the restaurant info provided. "
                         "Be warm, concise, and conversational. Use short natural English sentences. "
                         "If the caller gives reservation details, confirm clearly, then ask for their name, email and phone "
-                        "to finalize. Ask them to spell each slowly and confirm what you understood. "
-                        "If unclear, ask only for that portion to be repeated. Once both are clear, confirm everything, "
+                        "If they provide contact info, repeat it back to confirm accuracy. If they said its correct or right or anything that means yes, proceed. "
+                        "If unclear. Ask them to spell each slowly and confirm what you understood. "
+                        "Unclear even after spelling out, ask only for that portion to be repeated. Once both are clear, confirm everything, "
                         "then say: 'Thank you! Your reservation is confirmed. We look forward to seeing you.' "
                         f"Here is the restaurant information:\n{RESTAURANT_INFO}"
                     ),
@@ -462,9 +463,9 @@ async def handle_twilio(ws):
             if evt == "start":
                 CURRENT_CALL_SID = data["start"]["callSid"]
                 print(f"📞 Call started: {CURRENT_CALL_SID}")
-                cleanup_tts()
-                cleanup_recordings()
-
+                # cleanup_tts()
+                # cleanup_recordings()
+                
                 greeting_text = (
                     "Hello! This is Mia from The Restaurant. "
                     "How can I assist you today? Would you like to make a reservation or ask about our menu?"
@@ -480,7 +481,7 @@ async def handle_twilio(ws):
                 except Exception as e:
                     print("⚠ Error starting recording:", e)
 
-                asyncio.create_task(warm_up_models())
+                # asyncio.create_task(warm_up_models())
 
             elif evt == "media":
                 b64 = data["media"].get("payload", "")
@@ -518,6 +519,12 @@ async def handle_twilio(ws):
 # ===== MAIN =====
 async def main():
     print(f"🧩 Restaurant Receptionist server running at ws://0.0.0.0:{PORT}/stream")
+    
+    cleanup_tts()
+    cleanup_recordings()
+    
+    await warm_up_models()
+
     async with websockets.serve(handle_twilio, "0.0.0.0", PORT, ping_interval=20, ping_timeout=20):
         await asyncio.Future()
 
