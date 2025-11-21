@@ -33,7 +33,7 @@ This project showcases a **full-stack AI + Voice Engineering architecture**, com
 <!-- <img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="Architecture_&_Output_Screenshots/Wrokflow.png" /> -->
 
 - Twilio Caller <-> Twilio Media Streams <-> OpenAI Realtime API <-> Twilio Caller
-  -This realtime version removes Deepgram and classic TTS.
+
 - All audio-in, transcription, reasoning, and audio-out are handled inside the OpenAI Realtime API.
 
 ---
