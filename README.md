@@ -1,24 +1,21 @@
 # 🤖 AI Call CoPilot
 
-AI Call CoPilot is a **voice-call assistant** that integrates **Twilio Voice**, **Flask**, **Deepgram** and **OpenAI** to handle and assist with **live phone conversations**.  
-It enables agents to **accept incoming calls**, view **real-time transcriptions**, see **AI-generated suggestions**, and optionally **take over the call manually** — all through a sleek, browser-based dashboard.
-
----
+## AI Call CoPilot is a **voice-call assistant** that integrates **Twilio Voice**, **Flask**, **OpenAI** to handle and assist with **live phone conversations**.
 
 ## 🚀 Project Overview
 
 The goal of this project is to build a **fully autonomous AI-powered communication system** capable of:
 
 - Managing **incoming and outgoing calls** through Twilio Voice
-- Transcribing calls in **real time** using **Deepgram**
+- Transcribing calls in **instantly** using **OpenAI Realtime Transcription**
 - Using **GPT reasoning** to generate intelligent and context-aware responses
-- **Speaking directly to the caller** through **OpenAI Text-to-Speech (TTS)**
+- **Speaking directly to the caller** using **OpenAI Realtime Voice (built-in TTS)**
 - Displaying all call activity, transcriptions, and AI responses on a **real-time agent dashboard**
 - Generating **automated call summaries and quality reports** at the end of each call
 
 Unlike traditional AI assist tools, the **AI Call CoPilot** operates **independently without agent intervention.**
 The human agent **monitors the conversation** through the dashboard but does not interact with the caller.
-All speech, logic, and flow are driven by the **AI in real time** — making it a complete **end-to-end Voice AI Communication System.**
+All speech, trasncription, and dialog flow are handled inside a single **OpenAI Realtime model.**
 
 This project showcases a **full-stack AI + Voice Engineering architecture**, combining:
 
@@ -31,8 +28,13 @@ This project showcases a **full-stack AI + Voice Engineering architecture**, com
 
 ## 🧱 Architecture
 
-**Data & Audio Flow:**  
-<img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="Architecture_&_Output_Screenshots/Wrokflow.png" />
+**Data & Audio Flow:**
+
+<!-- <img width="5100" height="2300" alt="AI Call CoPilot Workflow" src="Architecture_&_Output_Screenshots/Wrokflow.png" /> -->
+
+- Twilio Caller <-> Twilio Media Streams <-> OpenAI Realtime API <-> Twilio Caller
+  -This realtime version removes Deepgram and classic TTS.
+- All audio-in, transcription, reasoning, and audio-out are handled inside the OpenAI Realtime API.
 
 ---
 
@@ -41,8 +43,7 @@ This project showcases a **full-stack AI + Voice Engineering architecture**, com
 - **Twilio Voice API** – Handles call routing and audio streaming
 - **Flask Backend** – Hosts endpoints, TwiML responses, and dashboard updates
 - **Stream Server (WebSocket)** – Processes audio, transcription, and AI logic
-- **Deepgram** - Provides transcription
-- **OpenAI (GPT, TTS)** – Response generation, and speech synthesis
+- **OpenAI Realtime API** - Handles transcription, reasoning, and voice output in a single model
 - **Frontend (HTML, CSS, JS)** – Displays real-time updates, AI replies, and agent actions
 
 ---
@@ -53,7 +54,7 @@ This project showcases a **full-stack AI + Voice Engineering architecture**, com
 | ------------- | ------------------------------------------ |
 | **Backend**   | Python (Flask,Flask-SocketIO)              |
 | **Streaming** | WebSockets, Twilio Media Streams           |
-| **AI Models** | Deepgram, OpenAI GPT, TTS                  |
+| **AI Models** | OpenAI Realtime                            |
 | **Frontend**  | HTML, CSS, JavaScript                      |
 | **Optional**  | Node.js for managing frontend dependencies |
 
@@ -73,7 +74,7 @@ AI_Call_CoPilot/
 ├── static/ # Frontend assets
 │ ├── css/ # Stylesheets
 │ ├── js/ # Dashboard scripts
-│ └── tts/ # Temporary audio files
+│ └── tts/
 │
 ├── logs/ # Optional logs directory
 ├── requirements.txt # Python dependencies
@@ -138,10 +139,10 @@ If Twilio needs to access your local app, expose it using Ngrok, Cloudflared, or
 - **Caller dials** the Twilio number.
 - Twilio triggers a **Flask TwiML endpoint** that establishes the WebSocket connection.
 - The **WebSocket Stream Server** receives live audio data from the caller.
-- The audio is sent to **Deepgram** for **speech-to-text transcription**.
+- The audio is streamed directly to the **OpenAI Realtime API.**
 - **GPT reasoning** generates a real-time AI reply based on conversation context.
-- The reply text is converted to speech using **OpenAI TTS**.
-- The **TTS audio** is streamed **back to Twilio**, allowing the AI to **speak directly to the caller.**
+- The model performs transcription, reasoning, and voice generation in one pipeline.
+- The Realtime API streams back synthesized speech instantly to Twilio.
 - Meanwhile, the dashboard **displays** the full transcription, responses, and AI call analysis in real time.
 
 ---
@@ -151,4 +152,3 @@ If Twilio needs to access your local app, expose it using Ngrok, Cloudflared, or
 - node_modules and venv are intentionally excluded from the repository.
 - All keys and credentials are stored securely in .env.
 - Update FLASK_SOCKET_URL in .env if the dashboard or Socket.IO endpoint changes.
-- Temporary audio files such as tts\_\*.mp3 are automatically ignored to keep the repository clean.
