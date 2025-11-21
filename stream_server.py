@@ -9,6 +9,7 @@ import audioop
 import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from prompts import SYSTEM_INSTRUCTIONS, RESTAURANT_INFO, QA_PROMPT
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -37,38 +38,6 @@ if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
 # ===== SETTINGS =====
 POOL = ThreadPoolExecutor(max_workers=4)
 LOG_FILE = "conversation_log.txt"
-
-# ===== CONTEXT =====
-RESTAURANT_INFO = """
-Restaurant Name: The Restaurant
-Cuisine: Italian & Continental
-Timings: 10:00 AM - 10:00 PM
-Location: 123 Main Street, Austin, TX
-Contact: +1 (507) 554-1673
-Menu Highlights:
-  - Starters: Garlic Bread, Caesar Salad, Bruschetta
-  - Main Course: Alfredo Pasta, Margherita Pizza, Lasagna
-  - Desserts: Tiramisu, Chocolate Mousse
-  - Beverages: Coffee, Wine, Fresh Juice
-Policies:
-  - Accepts reservations up to 10 people.
-  - Takeout and curbside pickup available.
-  - No home delivery.
-"""
-
-SYSTEM_INSTRUCTIONS = (
-    "You are Mia, a polite and professional restaurant receptionist for 'The Restaurant'. "
-    "You handle calls for reservations, timings, and menu questions. "
-    "Keep track of what the caller already said and never ask the same question again. "
-    "And also be sure to only provide information that is in the restaurant info provided. "
-    "Be warm, concise, and conversational. Use short natural English sentences. "
-    "If the caller gives reservation details, confirm clearly, then ask for their name, email and phone "
-    "If they provide contact info, repeat it back to confirm accuracy. If they said its correct or right or anything that means yes, proceed. "
-    "If unclear. Ask them to spell each slowly and confirm what you understood. "
-    "Unclear even after spelling out, ask only for that portion to be repeated. Once both are clear, confirm everything, "
-    "then say: 'Thank you! Your reservation is confirmed. We look forward to seeing you.' "
-    f"Here is the restaurant information:\n{RESTAURANT_INFO}"
-)
 
 # ===== LOGGING UTILITIES =====
 def _ts() -> str:
@@ -110,14 +79,8 @@ async def update_dashboard(caller_text: str, ai_text: str) -> None:
         print("⚠ Dashboard update failed:", e)
 
 
-# ===== QA REPORT GENERATION (improved realism + consistency) =====
+# ===== QA REPORT GENERATION =====
 def build_quality_report_sync(conversation_text: str) -> str:
-    """
-    Generate a realistic QA report.
-    - If there was no real conversation, return a short explanation.
-    - If conversation is very short, avoid fabricated detailed scoring.
-    - For meaningful calls, ask the model to evaluate ONLY what actually happened.
-    """
 
     convo = conversation_text.strip()
     if not convo:
@@ -163,33 +126,13 @@ def build_quality_report_sync(conversation_text: str) -> str:
         )
 
     # For longer, meaningful conversations → perform full QA scoring
-    prompt = (
-        "You are a senior QA evaluator analyzing a real phone call between a human customer "
-        "and an AI restaurant receptionist. Evaluate ONLY what is explicitly present in the "
-        "conversation log below. Do NOT guess or fabricate details.\n\n"
-        "Use the following rubric and be strict and evidence-based:\n"
-        "1. Overall Score (0–100) based only on demonstrated behavior.\n"
-        "2. Communication Metrics (each 0–10, or 'N/A' if not enough evidence):\n"
-        "   - Greeting & Politeness\n"
-        "   - Active Listening\n"
-        "   - Clarity & Conciseness\n"
-        "   - Empathy & Tone\n"
-        "   - Accuracy of Information\n"
-        "3. Summary (2–3 sentences describing how the AI performed overall).\n"
-        "4. Detailed Analysis (3–5 sentences explaining specific strengths and issues based on the transcript).\n"
-        "5. Strengths (up to 3 short bullet points).\n"
-        "6. Areas for Improvement (up to 3 short bullet points).\n"
-        "7. AI Recommendations (practical suggestions to improve future calls).\n\n"
-        "Return plain text only (no markdown tables or formatting). "
-        "If any metric cannot be judged from the transcript, clearly mark it as 'N/A'.\n\n"
-        "Conversation Log:\n"
-        f"{convo}\n"
-    )
+    prompt = f"{QA_PROMPT}\n\nConversation Log:\n{convo}"
+    
 
     try:
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
-            temperature=0,  # deterministic & consistent for same conversation
+            temperature=0,  
             messages=[
                 {
                     "role": "system",
@@ -201,7 +144,7 @@ def build_quality_report_sync(conversation_text: str) -> str:
         text = resp.choices[0].message.content.strip()
         return text
     except Exception as e:
-        print("⚠ Report generation error:", e)
+        print(" Report generation error:", e)
         return "Report generation failed."
 
 
@@ -222,10 +165,7 @@ async def make_report() -> None:
 
 # ===== OPENAI REALTIME CONNECTION =====
 async def connect_openai_realtime():
-    """
-    Connect to OpenAI Realtime API and configure the session
-    for G.711 ulaw audio in/out + transcription + Mia instructions.
-    """
+    
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is not set")
 
@@ -284,11 +224,7 @@ async def connect_openai_realtime():
 
 # ===== BRIDGE: Twilio -> OpenAI =====
 async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
-    """
-    Receive audio/media events from Twilio Media Streams,
-    forward audio to OpenAI Realtime as input_audio_buffer.append events,
-    and manage call start/stop & recording.
-    """
+   
     reset_log()
     print("🔗 Twilio connected.")
 
@@ -391,7 +327,6 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
                 break
 
             else:
-                # e.g. "connected" etc.
                 print(f"ℹ Twilio event: {evt}")
 
     except Exception as e:
@@ -403,13 +338,7 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
 
 # ===== BRIDGE: OpenAI -> Twilio =====
 async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
-    """
-    Receive events from OpenAI Realtime and:
-      - stream G.711 ulaw audio back to Twilio,
-      - capture caller transcripts,
-      - capture AI transcripts,
-      - push updates to dashboard and log for QA.
-    """
+    
     try:
         async for raw in openai_ws:
             try:
@@ -478,12 +407,7 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
 
 # ===== MAIN HANDLER PER CALL =====
 async def handle_twilio(ws):
-    """
-    For each incoming Twilio media stream:
-      1) Create OpenAI Realtime connection.
-      2) Run Twilio->OpenAI and OpenAI->Twilio bridges in parallel.
-      3) When done, generate QA report from conversation_log.txt.
-    """
+    
     shared_state = {
         "call_sid": None,
         "stream_sid": None,
