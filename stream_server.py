@@ -387,10 +387,7 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
                     append_log("Caller", caller_text)
                     await update_dashboard(caller_text, "")
 
-            # Optional streaming text deltas (not used for dashboard right now)
-            elif etype == "response.audio_transcript.delta":
-                # Could be used later if you want live partial captions
-                pass
+            
 
             elif etype == "error":
                 print("⚠ OpenAI Realtime error:", evt)
