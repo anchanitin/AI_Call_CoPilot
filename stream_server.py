@@ -4,12 +4,11 @@ import asyncio
 import websockets
 import aiohttp
 import time
-import re
 import audioop
 import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from prompts import SYSTEM_INSTRUCTIONS, RESTAURANT_INFO, QA_PROMPT
+from prompts import SYSTEM_INSTRUCTIONS, QA_PROMPT
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -98,9 +97,7 @@ def build_quality_report_sync(conversation_text: str) -> str:
     caller_lines = [ln for ln in lines if "[Caller]" in ln]
     ai_lines = [ln for ln in lines if "[AI]" in ln]
 
-    # Count words to estimate how much content we actually have
-    word_count = len(re.findall(r"\w+", convo))
-
+    
     # Case 1: caller never really spoke
     if len(caller_lines) == 0:
         return (
@@ -113,7 +110,7 @@ def build_quality_report_sync(conversation_text: str) -> str:
         )
 
     # Case 2: very short or trivial conversation → avoid fake detailed scoring
-    if (len(caller_lines) + len(ai_lines) < 4) or word_count < 40:
+    if (len(caller_lines) + len(ai_lines) < 4):
         return (
             "Summary: The conversation was too brief to generate a meaningful quality evaluation. "
             "The caller may have disconnected early or shared only minimal information.\n"

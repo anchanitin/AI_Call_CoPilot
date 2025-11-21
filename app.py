@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, Response, render_template, jsonify
+from flask import Flask, request, Response, render_template
 from flask_socketio import SocketIO
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from dotenv import load_dotenv
