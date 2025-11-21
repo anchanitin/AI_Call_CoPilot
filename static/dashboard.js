@@ -32,9 +32,6 @@
   }
 
   const chatFeed = $("chatFeed");
-  const btnAccept = $("btnAccept");
-  const btnDecline = $("btnDecline");
-  const btnHang = $("btnHangup");
   const stateBadge = $("callStateBadge");
   const reportBox = $("reportBox");
   const summaryBox = $("summaryText");
@@ -98,7 +95,7 @@
   });
 
   socket.on("call_ended", () => {
-    log("Hanging up... (caller disconnected)", "warn");
+    log("Caller disconnected", "warn");
     reset();
   });
 
@@ -229,68 +226,15 @@
     }
     return found;
   }
-
-  let device = null,
-    conn = null;
-  async function initTwilio() {
-    try {
-      const res = await fetch("/token?identity=agent");
-      const data = await res.json();
-      device = new Twilio.Device(data.token, { codecPreferences: ["opus", "pcmu"], enableRingingState: true });
-      await device.register();
-      log("Twilio Device ready", "ok");
-      setState("idle");
-
-      device.on("incoming", (c) => {
-        conn = c;
-        btnAccept.style.display = "inline-block";
-        btnDecline.style.display = "inline-block";
-        setState("ringing");
-        chatFeed.innerHTML = "";
-        reportBox.style.display = "block";
-        reportBox.textContent = "Report will appear here after the call ends…";
-        summaryBox.textContent = "Waiting for summary…";
-        metricBox.innerHTML = "";
-        badgeBox.innerHTML = "";
-        hideAllSections();
-        btnAccept.onclick = () => {
-          log("Accepting call...", "ok");
-          c.accept();
-          btnAccept.style.display = "none";
-          btnDecline.style.display = "none";
-          btnHang.disabled = false;
-          setState("in call");
-        };
-        btnDecline.onclick = () => {
-          log("Declined call", "warn");
-          c.reject();
-          reset();
-        };
-      });
-
-      device.on("disconnect", () => {
-        log("Call ended (device disconnect)", "warn");
-        reset();
-      });
-    } catch (err) {
-      log(`Error: ${err.message}`, "err");
-    }
-  }
-
   function reset() {
-    btnHang.disabled = true;
-    btnAccept.style.display = "none";
-    btnDecline.style.display = "none";
     setState("idle");
   }
 
-  btnHang.onclick = () => {
-    if (conn) {
-      log("Hanging up...", "warn");
-      conn.disconnect();
-      reset();
-    }
-  };
-
-  initTwilio();
 })();
+
+
+
+
+
+
+

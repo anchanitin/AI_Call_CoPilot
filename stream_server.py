@@ -5,7 +5,6 @@ import websockets
 import aiohttp
 import time
 import re
-import requests
 import audioop
 import base64
 from concurrent.futures import ThreadPoolExecutor
@@ -39,11 +38,11 @@ if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
 POOL = ThreadPoolExecutor(max_workers=4)
 LOG_FILE = "conversation_log.txt"
 
-# ===== RESTAURANT CONTEXT (same as your old prompt) =====
+# ===== CONTEXT =====
 RESTAURANT_INFO = """
 Restaurant Name: The Restaurant
 Cuisine: Italian & Continental
-Timings: 10:00 AM – 10:00 PM
+Timings: 10:00 AM - 10:00 PM
 Location: 123 Main Street, Austin, TX
 Contact: +1 (507) 554-1673
 Menu Highlights:
@@ -66,40 +65,10 @@ SYSTEM_INSTRUCTIONS = (
     "If the caller gives reservation details, confirm clearly, then ask for their name, email and phone "
     "If they provide contact info, repeat it back to confirm accuracy. If they said its correct or right or anything that means yes, proceed. "
     "If unclear. Ask them to spell each slowly and confirm what you understood. "
-    "Still unclear, ask only for that portion to be repeated. Once both are clear, confirm everything, "
+    "Unclear even after spelling out, ask only for that portion to be repeated. Once both are clear, confirm everything, "
     "then say: 'Thank you! Your reservation is confirmed. We look forward to seeing you.' "
     f"Here is the restaurant information:\n{RESTAURANT_INFO}"
 )
-
-
-# ===== RECORDING DOWNLOAD =====
-def download_call_recording(call_sid):
-    if not twilio_client:
-        print("⚠ Twilio client not configured.")
-        return None
-    try:
-        recordings = twilio_client.recordings.list(call_sid=call_sid)
-        if not recordings:
-            print("⚠ No Twilio recordings found.")
-            return None
-
-        rec = recordings[0]
-        url = f"https://api.twilio.com{rec.uri.replace('.json', '.mp3')}"
-        os.makedirs("static/recordings", exist_ok=True)
-        save_path = f"static/recordings/{rec.sid}.mp3"
-
-        r = requests.get(url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
-        with open(save_path, "wb") as f:
-            f.write(r.content)
-
-        print(f"🎧 Saved call recording → {save_path}")
-        return save_path
-
-    except Exception as e:
-        print("⚠ Recording download error:", e)
-        return None
-
-
 
 # ===== LOGGING UTILITIES =====
 def _ts() -> str:
@@ -141,40 +110,96 @@ async def update_dashboard(caller_text: str, ai_text: str) -> None:
         print("⚠ Dashboard update failed:", e)
 
 
-# ===== QA REPORT GENERATION (same structure as before) =====
+# ===== QA REPORT GENERATION (improved realism + consistency) =====
 def build_quality_report_sync(conversation_text: str) -> str:
-    if not conversation_text.strip():
-        return "No conversation content available."
+    """
+    Generate a realistic QA report.
+    - If there was no real conversation, return a short explanation.
+    - If conversation is very short, avoid fabricated detailed scoring.
+    - For meaningful calls, ask the model to evaluate ONLY what actually happened.
+    """
 
+    convo = conversation_text.strip()
+    if not convo:
+        # No content at all
+        return (
+            "Summary: Caller disconnected immediately before any conversation could begin.\n"
+            "Detailed Analysis: No interaction occurred, so call quality cannot be evaluated.\n"
+            "Strengths: None (no conversation).\n"
+            "Areas for Improvement: Not enough data to analyze.\n"
+            "AI Recommendations: None for this call."
+        )
+
+    # Separate lines and detect caller/AI lines
+    lines = [ln for ln in convo.splitlines() if ln.strip()]
+    caller_lines = [ln for ln in lines if "[Caller]" in ln]
+    ai_lines = [ln for ln in lines if "[AI]" in ln]
+
+    # Count words to estimate how much content we actually have
+    word_count = len(re.findall(r"\w+", convo))
+
+    # Case 1: caller never really spoke
+    if len(caller_lines) == 0:
+        return (
+            "Summary: The caller disconnected before providing any information or engaging in a conversation.\n"
+            "Detailed Analysis: The AI did not have a chance to interact with the caller in a meaningful way, "
+            "so this call cannot be evaluated for quality.\n"
+            "Strengths: None identified (no conversation).\n"
+            "Areas for Improvement: Not enough data to identify specific improvement points.\n"
+            "AI Recommendations: None for this call."
+        )
+
+    # Case 2: very short or trivial conversation → avoid fake detailed scoring
+    if (len(caller_lines) + len(ai_lines) < 4) or word_count < 40:
+        return (
+            "Summary: The conversation was too brief to generate a meaningful quality evaluation. "
+            "The caller may have disconnected early or shared only minimal information.\n"
+            "Detailed Analysis: With only a few short utterances, it is not possible to reliably assess greeting, "
+            "active listening, empathy, or accuracy. Any numeric scores would be misleading.\n"
+            "Strengths: The system successfully answered the call and attempted to respond, "
+            "but the dialogue length was insufficient for evaluation.\n"
+            "Areas for Improvement: Encourage longer engagement to collect enough context for QA analysis.\n"
+            "AI Recommendations: No specific behavior changes are recommended based on this call alone."
+        )
+
+    # For longer, meaningful conversations → perform full QA scoring
     prompt = (
-        "You are a senior QA evaluator analyzing a restaurant receptionist call between a customer and the AI. "
-        "Provide a clear, structured, business-grade report with the following sections:\n\n"
-        "1. Overall Score (out of 100)\n"
-        "2. Communication Metrics:\n"
-        "   - Greeting & Politeness (out of 10)\n"
-        "   - Active Listening (out of 10)\n"
-        "   - Clarity & Conciseness (out of 10)\n"
-        "   - Empathy & Tone (out of 10)\n"
-        "   - Accuracy of Information (out of 10)\n"
-        "3. Summary (2–3 sentences on how the receptionist performed overall)\n"
-        "4. Detailed Analysis (3–5 sentences explaining major highlights and issues)\n"
-        "5. Strengths (3 short bullet points)\n"
-        "6. Areas for Improvement (3 short bullet points)\n"
-        "7. AI Recommendations (specific actions to improve future interactions)\n\n"
-        "Avoid markdown, tables, or asterisks — just plain clean text."
+        "You are a senior QA evaluator analyzing a real phone call between a human customer "
+        "and an AI restaurant receptionist. Evaluate ONLY what is explicitly present in the "
+        "conversation log below. Do NOT guess or fabricate details.\n\n"
+        "Use the following rubric and be strict and evidence-based:\n"
+        "1. Overall Score (0–100) based only on demonstrated behavior.\n"
+        "2. Communication Metrics (each 0–10, or 'N/A' if not enough evidence):\n"
+        "   - Greeting & Politeness\n"
+        "   - Active Listening\n"
+        "   - Clarity & Conciseness\n"
+        "   - Empathy & Tone\n"
+        "   - Accuracy of Information\n"
+        "3. Summary (2–3 sentences describing how the AI performed overall).\n"
+        "4. Detailed Analysis (3–5 sentences explaining specific strengths and issues based on the transcript).\n"
+        "5. Strengths (up to 3 short bullet points).\n"
+        "6. Areas for Improvement (up to 3 short bullet points).\n"
+        "7. AI Recommendations (practical suggestions to improve future calls).\n\n"
+        "Return plain text only (no markdown tables or formatting). "
+        "If any metric cannot be judged from the transcript, clearly mark it as 'N/A'.\n\n"
+        "Conversation Log:\n"
+        f"{convo}\n"
     )
 
     try:
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
+            temperature=0,  # deterministic & consistent for same conversation
             messages=[
-                {"role": "system", "content": "You are an expert QA reviewer."},
-                {"role": "user", "content": f"{prompt}\n\n---\n{conversation_text}\n---"},
+                {
+                    "role": "system",
+                    "content": "You are an expert call QA reviewer. You never hallucinate and only use evidence in the transcript.",
+                },
+                {"role": "user", "content": prompt},
             ],
         )
         text = resp.choices[0].message.content.strip()
-        # remove stray markdown bullet syntax if any
-        return re.sub(r"\\(.?)\\*", r"\1", text)
+        return text
     except Exception as e:
         print("⚠ Report generation error:", e)
         return "Report generation failed."
@@ -229,7 +254,6 @@ async def connect_openai_realtime():
             "input_audio_transcription": {
                 "model": "gpt-4o-mini-transcribe"
             },
-            
 
             "turn_detection": {
                 "type": "server_vad",
@@ -280,6 +304,7 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
 
                 shared_state["call_sid"] = call_sid
                 shared_state["stream_sid"] = stream_sid
+                shared_state["call_start_time"] = time.time()
 
                 print(f"📞 Call started: {call_sid}")
                 print(f"🛰 Stream SID: {stream_sid}")
@@ -288,7 +313,9 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
                 # Start Twilio call recording
                 if twilio_client and call_sid:
                     try:
-                        twilio_client.calls(call_sid).recordings.create(recording_channels="dual")
+                        twilio_client.calls(call_sid).recordings.create(
+                            recording_channels="dual"
+                        )
                         print("🎙 Recording started via REST API.")
                     except Exception as e:
                         print("⚠ Error starting recording:", e)
@@ -341,17 +368,24 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
                     print("⚠ Error sending boosted audio to OpenAI:", e)
                     break
 
-
             elif evt == "stop":
                 print("🛑 Twilio sent stop event.")
                 append_log("SYSTEM", "Twilio stop event received.")
                 shared_state["stopped"] = True
 
+                # Track call duration
+                start_time = shared_state.get("call_start_time")
+                if start_time:
+                    duration = time.time() - start_time
+                    shared_state["duration"] = duration
+                    append_log("SYSTEM", f"Call duration: {duration:.2f} seconds")
+
                 # Tell OpenAI we're done with input audio
-                
                 await asyncio.sleep(0.25)
                 try:
-                    await openai_ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
+                    await openai_ws.send(
+                        json.dumps({"type": "input_audio_buffer.commit"})
+                    )
                 except Exception as e:
                     print("⚠ Error committing audio buffer:", e)
                 break
@@ -440,8 +474,6 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
         print("⚠ OpenAI WS loop error:", e)
     finally:
         print("🔚 openai_to_twilio finished.")
-
-
 
 
 # ===== MAIN HANDLER PER CALL =====
