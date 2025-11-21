@@ -19,7 +19,7 @@ All speech, trasncription, and dialog flow are handled inside a single **OpenAI 
 
 This project showcases a **full-stack AI + Voice Engineering architecture**, combining:
 
-- **Real-time AI inference (Deepgram, GPT, TTS)**
+- **Real-time AI inference (OpenAI Realtime model)**
 - **Low-latency media streaming via WebSockets**
 - **Twilio Voice orchestration**
 - **Live analytics dashboard using Flask + SocketIO**
