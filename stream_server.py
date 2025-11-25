@@ -322,8 +322,7 @@ async def connect_openai_realtime():
 
             "turn_detection": {
                 "type": "server_vad",
-                "silence_duration_ms": 500,
-                "threshold": 0.5,
+                "silence_duration_ms": 300,
             },
         },
     }
@@ -334,13 +333,11 @@ async def connect_openai_realtime():
     greeting_instructions = {
         "type": "response.create",
         "response": {
-            "modalities": ["text", "audio"],
             "instructions": (
                 "Start the call by greeting the caller with: "
-                "\"Hello! This is Alex from 24/7 HVAC Emergency Services. Are you calling about a heating or cooling emergency?\" "
-                "Then listen carefully for any emergency indicators. If the caller mentions extreme cold, freezing temperatures, vulnerable occupants, or says 'emergency', "
-                "immediately respond: 'I understand this is an emergency. I'm connecting you with our emergency dispatch team right now.' "
-                "and then stop speaking. Otherwise, proceed with your troubleshooting flow."
+                "\"Hello! This is Mia from The Restaurant. Are you calling for a table reservation or catering service?\" "
+                "If the caller says catering, respond: 'Please hold on while I transfer you to an agent.' "
+                "Then stop speaking and wait for transfer."
             )
         },
     }
@@ -403,9 +400,9 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
                     print("⚠ ulaw2lin failed:", e)
                     pcm = raw_ulaw
 
-                # --- STEP 3: BOOST (1.5 = +3.5dB, reduced from 2.0 to avoid clipping) ---
+                # --- STEP 3: BOOST (2.0 = +6dB) ---
                 try:
-                    boosted_pcm = audioop.mul(pcm, 2, 1.5)    # second argument = width(2 bytes)
+                    boosted_pcm = audioop.mul(pcm, 2, 2.0)    # second argument = width(2 bytes)
                 except Exception as e:
                     print("⚠ boost failed:", e)
                     boosted_pcm = pcm
@@ -481,12 +478,10 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
             if etype == "response.audio.delta":
                 stream_sid = shared_state.get("stream_sid")
                 if not stream_sid:
-                    print("⚠ No stream_sid available for audio delta")
                     continue
 
                 delta_b64 = evt.get("delta")
                 if not delta_b64:
-                    print("⚠ Empty delta in response.audio.delta")
                     continue
 
                 twilio_media = {
@@ -499,7 +494,6 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
                     await asyncio.sleep(0.0125)
                 except Exception as e:
                     print("⚠ Error sending audio back to Twilio:", e)
-                    print(f"⚠ Audio delta size: {len(delta_b64)} bytes")
                     break
 
             # Final transcript of AI's spoken output (greeting + replies)
