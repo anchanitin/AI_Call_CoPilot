@@ -22,7 +22,7 @@ load_dotenv()
 
 # ===== ENVIRONMENT VARIABLES =====
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-PORT = int(os.getenv("STREAM_PORT", 8000))
+PORT = int(os.getenv("PORT", os.getenv("STREAM_PORT", 8000)))
 FLASK_SOCKET_URL = os.getenv("FLASK_SOCKET_URL")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL")
 FLASK_REPORT_URL = f"{PUBLIC_BASE_URL}/report"
