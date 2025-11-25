@@ -441,7 +441,7 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
                     shared_state["duration"] = duration
                     append_log("SYSTEM", f"Call duration: {duration:.2f} seconds")
 
-                # Tell OpenAI we're done with input audio
+                
                 await asyncio.sleep(0.25)
                 try:
                     await openai_ws.send(
