@@ -56,7 +56,7 @@ def voice():
     vr = VoiceResponse()
 
     connect = Connect()
-    connect.stream(url=f"{STREAM_SERVER_URL}/stream", track="inbound_track")
+    connect.stream(url=STREAM_SERVER_URL, track="inbound_track")
     vr.append(connect)
 
     # <Connect> takes over the call; no further TwiML is processed.
