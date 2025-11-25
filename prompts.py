@@ -53,3 +53,82 @@ QA_PROMPT = (
     "If any metric cannot be judged from the transcript, clearly mark it as 'N/A'.\n\n"
         
 )
+
+
+EMAIL_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Reservation Confirmation</title>
+
+<style>
+    body {{
+        font-family: Arial, sans-serif;
+        background-color: #f7f7f7;
+        padding: 0;
+        margin: 0;
+    }}
+    .container {{
+        background: #ffffff;
+        max-width: 600px;
+        margin: 30px auto;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }}
+    h2 {{
+        color: #2c3e50;
+        text-align: center;
+        border-bottom: 2px solid #e2e2e2;
+        padding-bottom: 10px;
+    }}
+    .details-box {{
+        background: #f0f7ff;
+        border-left: 5px solid #3498db;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 8px;
+    }}
+    .details-box p {{
+        font-size: 16px;
+        margin: 5px 0;
+    }}
+    .footer {{
+        margin-top: 25px;
+        text-align: center;
+        font-size: 14px;
+        color: #777;
+    }}
+</style>
+</head>
+
+<body>
+<div class="container">
+    <h2>🍽️ Reservation Confirmed!</h2>
+    <p>Hi <b>{{name}}</b>,</p>
+
+    <p>Your reservation at <b>The Restaurant</b> has been successfully confirmed.</p>
+
+    <div class="details-box">
+        <p><b>Date:</b> {{date}}</p>
+        <p><b>Time:</b> {{time}}</p>
+        <p><b>Guests:</b> {{people}}</p>
+        <p><b>Phone:</b> {{phone}}</p>
+        <p><b>Email:</b> {{email}}</p>
+    </div>
+
+    <p>
+        We're excited to host you!  
+        If you need to make any changes, feel free to reply to this email.
+    </p>
+
+    <p class="footer">
+        — The Restaurant Team<br>
+        123 Main Street, Austin, TX<br>
+        Open 10 AM - 10 PM
+    </p>
+</div>
+</body>
+</html>
+"""

@@ -8,7 +8,10 @@ import audioop
 import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from prompts import SYSTEM_INSTRUCTIONS, QA_PROMPT
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
+from prompts import SYSTEM_INSTRUCTIONS, QA_PROMPT, EMAIL_TEMPLATE
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -76,6 +79,22 @@ async def update_dashboard(caller_text: str, ai_text: str) -> None:
             )
     except Exception as e:
         print("⚠ Dashboard update failed:", e)
+
+
+
+async def transfer_call_to_agent(shared_state):
+    call_sid = shared_state.get("call_sid")
+    if not call_sid or not twilio_client:
+        print("Cannot transfer — missing call SID or Twilio client")
+        return
+
+    try:
+        twilio_client.calls(call_sid).update(
+            url=f"{PUBLIC_BASE_URL}/transfer_to_agent_twiml"
+        )
+        print("Call transferred to live agent.")
+    except Exception as e:
+        print("Transfer failed:", e)
 
 
 # ===== QA REPORT GENERATION =====
@@ -160,6 +179,115 @@ async def make_report() -> None:
         print("⚠ Report post failed:", e)
 
 
+# ===== SEND RESERVATION EMAIL =====
+async def send_reservation_email(details):
+    name = details.get("name", "Guest")
+    email = details.get("email")
+    date = details.get("date")
+    time = details.get("time")
+    people = details.get("people")
+    phone = details.get("phone")
+
+    if not email:
+        print("⚠ No email available to send confirmation.")
+        return
+
+    msg = Mail(
+        from_email="anchanitin9@gmail.com",  # Use SendGrid verified sender
+        to_emails=email,
+        subject="Your Reservation is Confirmed",
+        html_content = EMAIL_TEMPLATE \
+            .replace("{{name}}", name or "Guest") \
+            .replace("{{email}}", email or "") \
+            .replace("{{phone}}", phone or "") \
+            .replace("{{date}}", date or "") \
+            .replace("{{time}}", time or "") \
+            .replace("{{people}}", str(people or ""))
+    )
+
+    try:
+        sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
+        sg.send(msg)
+        print(f"📧 Confirmation email sent to {email}")
+    except Exception as e:
+        print("⚠ Email send failed:", e)
+
+
+
+async def extract_reservation_details():
+    convo = read_log()
+
+    prompt = (
+        "Extract ONLY the following fields from this restaurant reservation call:\n"
+        "- name\n"
+        "- email\n"
+        "- phone\n"
+        "- date\n"
+        "- time\n"
+        "- people\n\n"
+        "Rules:\n"
+        "1. Always return ONLY a JSON object.\n"
+        "2. Do NOT wrap JSON in code fences.\n"
+        "3. Do NOT include explanations.\n"
+        "4. If a field is missing, set it to null.\n\n"
+        f"Conversation Log:\n{convo}"
+    )
+
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    raw_output = resp.choices[0].message.content.strip()
+    print("🔍 GPT RAW OUTPUT:", raw_output)
+
+    # --- Remove Markdown fences if present ---
+    cleaned = raw_output.replace("```json", "").replace("```", "").strip()
+    print("🔧 CLEANED OUTPUT:", cleaned)
+
+    # Try parsing cleaned output
+    try:
+        data = json.loads(cleaned)
+        print("✅ Parsed JSON:", data)
+        return data
+
+    except Exception as e:
+        print("⚠ JSON parsing failed:", e)
+        print("⚠ Falling back to regex extraction.")
+
+        import re
+        fallback = {}
+
+        # email
+        email_match = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", convo)
+        fallback["email"] = email_match.group(0) if email_match else None
+
+        # phone
+        phone_match = re.search(r"\b\d{3}[- ]?\d{3}[- ]?\d{4}\b", convo)
+        fallback["phone"] = phone_match.group(0) if phone_match else None
+
+        # date
+        date_match = re.search(r"\b(?:\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|tomorrow|today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b",convo, re.IGNORECASE)
+        fallback["date"] = date_match.group(0) if date_match else None
+
+        # time
+        time_match = re.search(r"\b\d{1,2}(:\d{2})?\s?(AM|PM|am|pm)\b", convo)
+        fallback["time"] = time_match.group(0) if time_match else None
+
+        # people count
+        people_match = re.search(r"\b([1-9]|1[0-9])\s?(people|persons|guests|seats)\b", convo)
+        fallback["people"] = people_match.group(1) if people_match else None
+
+        # name
+        name_match = re.search(r"(my name is|name is)\s+([A-Za-z ]+)", convo, re.IGNORECASE)
+        fallback["name"] = name_match.group(2).strip() if name_match else None
+
+        print("🔍 FALLBACK EXTRACTED:", fallback)
+        return fallback
+
+
+
 # ===== OPENAI REALTIME CONNECTION =====
 async def connect_openai_realtime():
     
@@ -194,7 +322,8 @@ async def connect_openai_realtime():
 
             "turn_detection": {
                 "type": "server_vad",
-                "silence_duration_ms": 300,
+                "silence_duration_ms": 500,
+                "threshold": 0.5,
             },
         },
     }
@@ -205,11 +334,13 @@ async def connect_openai_realtime():
     greeting_instructions = {
         "type": "response.create",
         "response": {
+            "modalities": ["text", "audio"],
             "instructions": (
                 "Start the call by greeting the caller with: "
-                "\"Hello! This is Mia from The Restaurant. How can I assist you today? "
-                "Would you like to make a reservation or ask about our menu?\" "
-                "Then continue the conversation following your usual instructions."
+                "\"Hello! This is Alex from 24/7 HVAC Emergency Services. Are you calling about a heating or cooling emergency?\" "
+                "Then listen carefully for any emergency indicators. If the caller mentions extreme cold, freezing temperatures, vulnerable occupants, or says 'emergency', "
+                "immediately respond: 'I understand this is an emergency. I'm connecting you with our emergency dispatch team right now.' "
+                "and then stop speaking. Otherwise, proceed with your troubleshooting flow."
             )
         },
     }
@@ -272,9 +403,9 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
                     print("⚠ ulaw2lin failed:", e)
                     pcm = raw_ulaw
 
-                # --- STEP 3: BOOST (2.0 = +6dB) ---
+                # --- STEP 3: BOOST (1.5 = +3.5dB, reduced from 2.0 to avoid clipping) ---
                 try:
-                    boosted_pcm = audioop.mul(pcm, 2, 2.0)    # second argument = width(2 bytes)
+                    boosted_pcm = audioop.mul(pcm, 2, 1.5)    # second argument = width(2 bytes)
                 except Exception as e:
                     print("⚠ boost failed:", e)
                     boosted_pcm = pcm
@@ -350,10 +481,12 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
             if etype == "response.audio.delta":
                 stream_sid = shared_state.get("stream_sid")
                 if not stream_sid:
+                    print("⚠ No stream_sid available for audio delta")
                     continue
 
                 delta_b64 = evt.get("delta")
                 if not delta_b64:
+                    print("⚠ Empty delta in response.audio.delta")
                     continue
 
                 twilio_media = {
@@ -366,6 +499,7 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
                     await asyncio.sleep(0.0125)
                 except Exception as e:
                     print("⚠ Error sending audio back to Twilio:", e)
+                    print(f"⚠ Audio delta size: {len(delta_b64)} bytes")
                     break
 
             # Final transcript of AI's spoken output (greeting + replies)
@@ -375,6 +509,17 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
                     print("🤖 AI:", ai_text)
                     append_log("AI", ai_text)
                     await update_dashboard("", ai_text)
+                    
+                    if ("reservation is confirmed" in ai_text.lower()
+                        or "your reservation is confirmed" in ai_text.lower()
+                        or "we look forward to seeing you" in ai_text.lower()
+                    ):
+                        print("📌 Reservation Completed → Extracting details...")
+
+                        details = await extract_reservation_details()
+                        print("📌 Extracted:", details)
+
+                        await send_reservation_email(details)
 
             # Caller transcript from input audio
             elif etype == "conversation.item.input_audio_transcription.completed":
@@ -383,8 +528,26 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
                     print("👤 Caller:", caller_text)
                     append_log("Caller", caller_text)
                     await update_dashboard(caller_text, "")
+                    
+                    if "catering" in caller_text.lower():
+                        print("Caller requested catering → Initiating transfer")
 
-            
+                        shared_state["stopped"] = True
+                        await update_dashboard("", "Transferred to agent")
+                        transfer_msg = {
+                            "type": "response.create",
+                            "response": {
+                                "instructions": (
+                                    "Please hold on while I transfer you to an agent."
+                                )
+                            }
+                        }
+                        await openai_ws.send(json.dumps(transfer_msg))
+                        await asyncio.sleep(1.5)
+
+                        
+                        await transfer_call_to_agent(shared_state)
+                        return
 
             elif etype == "error":
                 print("⚠ OpenAI Realtime error:", evt)

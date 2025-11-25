@@ -56,7 +56,7 @@ def voice():
     vr = VoiceResponse()
 
     connect = Connect()
-    connect.stream(url=STREAM_SERVER_URL, track="inbound_track")
+    connect.stream(url=f"{STREAM_SERVER_URL}/stream", track="inbound_track")
     vr.append(connect)
 
     # <Connect> takes over the call; no further TwiML is processed.
@@ -80,6 +80,14 @@ def report():
 
     socketio.emit("call_report", {"report": report_text})
     return Response("OK", 200)
+
+
+@app.route("/transfer_to_agent_twiml", methods=["POST"])
+def transfer_to_agent_twiml():
+    response = VoiceResponse()
+    response.dial("+18067023166")  # <-- agent real phone number here
+    return Response(str(response), mimetype="text/xml")
+
 
 
 if __name__ == "__main__":
