@@ -56,7 +56,7 @@ def voice():
     vr = VoiceResponse()
 
     connect = Connect()
-    connect.stream(url=f"{STREAM_SERVER_URL}/stream", track="inbound_track")
+    connect.stream(url=STREAM_SERVER_URL, track="inbound_track")
     vr.append(connect)
 
     # <Connect> takes over the call; no further TwiML is processed.
@@ -85,11 +85,9 @@ def report():
 @app.route("/transfer_to_agent_twiml", methods=["POST"])
 def transfer_to_agent_twiml():
     response = VoiceResponse()
-    response.dial("+18067023166")  # <-- agent real phone number here
+    response.dial("+18067023166")  
     return Response(str(response), mimetype="text/xml")
 
-
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    print(f"🚀 Flask + SocketIO running on port {port}")
-    socketio.run(app, host="0.0.0.0", port=port)
+    print("🚀 Flask + SocketIO running on port 5000")
+    socketio.run(app, host="0.0.0.0", port=5000)
