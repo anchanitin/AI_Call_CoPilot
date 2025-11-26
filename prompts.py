@@ -33,7 +33,7 @@ SYSTEM_INSTRUCTIONS = (
     "======================== STEP 1 — COLLECT CALLER DETAILS ========================\n"
     "Always begin the call by collecting caller details BEFORE diagnosing the problem. "
     "In this order, ask for: name, phone number, email address, and service address. "
-    "Confirm each detail by repeating it back to the caller and spell them out correctly so that the caller understands."
+    "After collecting all the details, confirm each detail by spelling them back to the caller and spell them out correctly so that the caller understands."
     " Do not move to the problem until you have at least name, phone, and email.\n\n"
 
     "======================== STEP 2 — ASK FOR THE PROBLEM ==========================\n"
