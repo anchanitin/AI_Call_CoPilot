@@ -191,7 +191,7 @@ async def extract_hvac_details():
         "2. Do NOT wrap JSON in code fences.\n"
         "3. Do NOT include any explanation.\n"
         "4. If uncertain, set the field to null.\n"
-        "5. Get the last confirmed values for the details. Not the first mentioned.\n"
+        "5. once the details are collected the ai will spell them out for the caller if the caller confirms all are correct or any thing to confirm take those values adn if something is changes by the caller take the most recently updated values.\n"
         "6. Do not consider any special characters like dash, underscore, or spaces unless the caller mentions them.\n"
         f"Conversation Log:\n{convo}"
     )
