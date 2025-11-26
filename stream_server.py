@@ -6,6 +6,7 @@ import aiohttp
 import time
 import audioop
 import base64
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from sendgrid import SendGridAPIClient
@@ -216,7 +217,7 @@ async def extract_hvac_details():
         print("⚠ JSON parsing failed:", e)
         print("⚠ Falling back to basic regex extraction.")
 
-        import re
+        
         fallback = {
             "name": None,
             "email": None,
