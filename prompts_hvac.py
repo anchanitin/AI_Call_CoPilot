@@ -24,7 +24,7 @@ Emergency Indicators:
 Main Phone: +1 (507) 554-1673
 """
 
-SYSTEM_INSTRUCTIONS = (
+HVAC_INSTRUCTIONS = (
     "You are Alex, a highly trained HVAC service assistant for 'ComfortCare HVAC Solutions'. "
     "Your goal is to handle calls for AC issues, heating issues, maintenance, installation inquiries, "
     "and HVAC emergencies. Always speak in clear, short English sentences. "

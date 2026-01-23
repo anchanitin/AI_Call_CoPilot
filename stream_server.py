@@ -8,11 +8,24 @@ import audioop
 import base64
 import re
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
-from prompts import SYSTEM_INSTRUCTIONS, QA_PROMPT, EMAIL_TEMPLATE
+from urllib.parse import parse_qs,urlparse  
+
+from prompts_restaurant import (
+    REST_INSTRUCTIONS as RESTAURANT_SYSTEM_INSTRUCTIONS,
+    QA_PROMPT as RESTAURANT_QA_PROMPT,
+    EMAIL_TEMPLATE as RESTAURANT_EMAIL_TEMPLATE,
+)
+
+from prompts_hvac import (
+    HVAC_INSTRUCTIONS as HVAC_SYSTEM_INSTRUCTIONS,
+    QA_PROMPT as HVAC_QA_PROMPT,
+    EMAIL_TEMPLATE as HVAC_EMAIL_TEMPLATE,
+)
+
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -30,6 +43,9 @@ FLASK_REPORT_URL = f"{PUBLIC_BASE_URL}/report"
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:4000")
+HVAC_CLIENT_ID = 1 
+RESTAURANT_CLIENT_ID = 2
 
 # ===== CLIENTS =====
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -136,7 +152,7 @@ def build_quality_report_sync(conversation_text: str) -> str:
             "AI Recommendations: No specific behavior changes are recommended based on this call alone."
         )
 
-    prompt = f"{QA_PROMPT}\n\nConversation Log:\n{convo}"
+    prompt = f"{HVAC_QA_PROMPT}\n\nConversation Log:\n{convo}"
 
     try:
         resp = client.chat.completions.create(
@@ -302,7 +318,7 @@ async def send_hvac_email(details):
         message_line = "Your HVAC service request has been recorded."
 
     html = (
-        EMAIL_TEMPLATE
+        HVAC_EMAIL_TEMPLATE
         .replace("{{title}}", title)
         .replace("{{name}}", name)
         .replace("{{message_line}}", message_line)
@@ -331,8 +347,248 @@ async def send_hvac_email(details):
         print("⚠ Email send failed:", e)
 
 
+
+# ===== EXTRACT RESTAURANT RESERVATION DETAILS =====
+async def extract_restaurant_reservation_details():
+    convo = read_log()
+
+    prompt = (
+        "Extract ONLY the following fields from this restaurant reservation call:\n"
+        "- name\n"
+        "- email\n"
+        "- phone\n"
+        "- date\n"
+        "- time\n"
+        "- people\n\n"
+        "Rules:\n"
+        "1. Always return ONLY a JSON object.\n"
+        "2. Do NOT wrap JSON in code fences.\n"
+        "3. Do NOT include explanations.\n"
+        "4. If a field is missing, set it to null.\n\n"
+        f"Conversation Log:\n{convo}"
+    )
+
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    raw_output = resp.choices[0].message.content.strip()
+    print("🔍 RESTAURANT GPT RAW OUTPUT:", raw_output)
+
+    cleaned = raw_output.replace("```json", "").replace("```", "").strip()
+    print("🔧 CLEANED OUTPUT:", cleaned)
+
+    try:
+        data = json.loads(cleaned)
+        print("✅ Parsed RESTAURANT JSON:", data)
+        return data
+    except Exception as e:
+        print("⚠ JSON parsing failed:", e)
+        print("⚠ Falling back to basic regex extraction.")
+
+        import re
+        fallback = {}
+
+        email_match = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", convo)
+        fallback["email"] = email_match.group(0) if email_match else None
+
+        phone_match = re.search(r"\b\d{3}[- ]?\d{3}[- ]?\d{4}\b", convo)
+        fallback["phone"] = phone_match.group(0) if phone_match else None
+
+        date_match = re.search(
+            r"\b(?:\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|tomorrow|today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b",
+            convo,
+            re.IGNORECASE,
+        )
+        fallback["date"] = date_match.group(0) if date_match else None
+
+        time_match = re.search(r"\b\d{1,2}(:\d{2})?\s?(AM|PM|am|pm)\b", convo)
+        fallback["time"] = time_match.group(0) if time_match else None
+
+        people_match = re.search(
+            r"\b([1-9]|1[0-9])\s?(people|persons|guests|seats)\b", convo
+        )
+        fallback["people"] = people_match.group(1) if people_match else None
+
+        name_match = re.search(
+            r"(my name is|name is)\s+([A-Za-z ]+)", convo, re.IGNORECASE
+        )
+        fallback["name"] = name_match.group(2).strip() if name_match else None
+
+        print("🔍 FALLBACK RESTAURANT EXTRACTED:", fallback)
+        return fallback
+
+
+# ===== SEND RESTAURANT EMAIL =====
+async def send_restaurant_email(details):
+    name = details.get("name", "Guest")
+    email = details.get("email")
+    date = details.get("date")
+    time_val = details.get("time")
+    people = details.get("people")
+    phone = details.get("phone")
+
+    if not email:
+        print("⚠ No email available to send reservation confirmation.")
+        return
+
+    html = (
+        RESTAURANT_EMAIL_TEMPLATE
+        .replace("{{name}}", name or "Guest")
+        .replace("{{email}}", email or "")
+        .replace("{{phone}}", phone or "")
+        .replace("{{date}}", date or "")
+        .replace("{{time}}", time_val or "")
+        .replace("{{people}}", str(people or ""))
+    )
+
+    msg = Mail(
+        from_email="anchanitin9@gmail.com",
+        to_emails=email,
+        subject="Your Reservation is Confirmed",
+        html_content=html,
+    )
+
+    try:
+        sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
+        sg.send(msg)
+        print(f"📧 RESTAURANT confirmation email sent to {email}")
+    except Exception as e:
+        print("⚠ RESTAURANT email send failed:", e)
+
+
+async def send_hvac_call_to_backend(details, shared_state):
+    
+    if not BACKEND_API_URL:
+        print("⚠ BACKEND_API_URL not set, skipping DB save.")
+        return
+
+    call_sid = shared_state.get("call_sid")
+    from_number = shared_state.get("from_number")
+    to_number = shared_state.get("to_number")
+    start_ts = shared_state.get("call_start_time")
+    duration = shared_state.get("duration")
+
+    # convert start timestamp to ISO string if available
+    if start_ts:
+        start_iso = datetime.fromtimestamp(start_ts, tz=timezone.utc).isoformat()
+    else:
+        start_iso = None
+
+    end_iso = datetime.now(timezone.utc).isoformat()
+
+    payload = {
+        "client": {
+            "clientId": HVAC_CLIENT_ID
+        },
+        "caller": {
+            "name": details.get("name"),
+            "email": details.get("email"),
+            "phone": details.get("phone"),
+            "address": details.get("address"),
+        },
+        "call": {
+            "callSid": call_sid,
+            "fromNumber": from_number,
+            "toNumber": to_number,
+            "startTime": start_iso,
+            "endTime": end_iso,
+            "duration": duration,
+        },
+        "summary": {
+            "serviceType": details.get("service_type"),
+            "issueDescription": details.get("issue_description"),
+            "appointmentDate": details.get("appointment_date"),
+            "appointmentTime": details.get("appointment_time"),
+            "qaReport": read_log(),  # or later you can store actual QA text
+        },
+    }
+
+    print("📤 Sending HVAC call data to backend:", payload)
+
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.post(f"{BACKEND_API_URL}/api/calls", json=payload, timeout=10) as resp:
+                print("✅ Backend response status:", resp.status)
+                try:
+                    print("✅ Backend response body:", await resp.text())
+                except Exception:
+                    pass
+    except Exception as e:
+        print("⚠ Failed to send HVAC data to backend:", e)
+
+
+async def send_restaurant_call_to_backend(details, shared_state):
+    if not BACKEND_API_URL:
+        print("⚠ BACKEND_API_URL not set, skipping DB save.")
+        return
+
+    call_sid = shared_state.get("call_sid")
+    from_number = shared_state.get("from_number")
+    to_number = shared_state.get("to_number")
+    start_ts = shared_state.get("call_start_time")
+    duration = shared_state.get("duration")
+
+    if start_ts:
+        start_iso = datetime.fromtimestamp(start_ts, tz=timezone.utc).isoformat()
+    else:
+        start_iso = None
+
+    end_iso = datetime.now(timezone.utc).isoformat()
+    
+    people = details.get("people")
+    date = details.get("date")
+    time_val = details.get("time")
+
+    issue_description = f"Table reservation for {people} people on {date} at {time_val}"
+
+    payload = {
+        "client": {
+            "clientId": RESTAURANT_CLIENT_ID
+        },
+        "caller": {
+            "name": details.get("name"),
+            "email": details.get("email"),
+            "phone": details.get("phone"),
+            "address": None,
+        },
+        "call": {
+            "callSid": call_sid,
+            "fromNumber": from_number,
+            "toNumber": to_number,
+            "startTime": start_iso,
+            "EndTime": end_iso,
+            "duration": duration,
+        },
+        "summary": {
+            "serviceType": "reservation",
+            "issueDescription": issue_description,
+            "appointmentDate": date,
+            "appointmentTime": time_val,
+            "qaReport": read_log(),
+        },
+    }
+
+    print("📤 Sending RESTAURANT call data to backend:", payload)
+
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.post(f"{BACKEND_API_URL}/api/calls", json=payload, timeout=10) as resp:
+                print("✅ Backend response status:", resp.status)
+                try:
+                    print("✅ Backend response body:", await resp.text())
+                except Exception:
+                    pass
+    except Exception as e:
+        print("⚠ Failed to send RESTAURANT data to backend:", e)
+
+
+
+
 # ===== OPENAI REALTIME CONNECTION =====
-async def connect_openai_realtime():
+async def connect_openai_realtime(business):
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is not set")
 
@@ -346,11 +602,15 @@ async def connect_openai_realtime():
     ws = await websockets.connect(url, extra_headers=headers, max_size=None)
     print("✅ Connected to OpenAI Realtime")
 
+    if business == "restaurant":
+        selected_instructions = RESTAURANT_SYSTEM_INSTRUCTIONS
+    else:
+        selected_instructions = HVAC_SYSTEM_INSTRUCTIONS
     session_update = {
         "type": "session.update",
         "session": {
             "modalities": ["audio", "text"],
-            "instructions": SYSTEM_INSTRUCTIONS,
+            "instructions": selected_instructions,
             "input_audio_format": "g711_ulaw",
             "output_audio_format": "g711_ulaw",
             "input_audio_transcription": {
@@ -366,18 +626,29 @@ async def connect_openai_realtime():
     await ws.send(json.dumps(session_update))
     print("✅ Sent session.update to OpenAI")
 
+    if business == "restaurant":
+        greeting_text = (
+            "Start the call by greeting the caller with: "
+            "\"Hello! This is Mia from The Restaurant. "
+            "Are you calling for a table reservation or catering service?\""
+        )
+    else:
+        greeting_text = (
+            "Start the call with: "
+            "'Hello, this is Mia from ComfortCare HVAC Solutions. "
+            "Before we begin, may I have your name, phone number, email address, "
+            "and service address?' "
+            "Then follow your system instructions exactly."
+        )
+
     greeting_instructions = {
         "type": "response.create",
         "response": {
-            "instructions": (
-                "Start the call with: "
-                "'Hello, this is Mia from ComfortCare HVAC Solutions. "
-                "Before we begin, may I have your name, phone number, email address, "
-                "and service address?' "
-                "Then follow your system instructions exactly."
-            )
+            "instructions": greeting_text
         },
     }
+    
+    
     await ws.send(json.dumps(greeting_instructions))
     print("✅ Requested initial greeting from OpenAI")
 
@@ -490,6 +761,7 @@ async def twilio_to_openai(twilio_ws, openai_ws, shared_state):
 
 # ===== BRIDGE: OpenAI -> Twilio =====
 async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
+    business=shared_state.get("business","hvac")
     try:
         async for raw in openai_ws:
             try:
@@ -528,12 +800,29 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
                     append_log("AI", ai_text)
                     await update_dashboard("", ai_text)
 
-                    # Non-emergency: AI says it will send an email → send email
-                    if "you will receive an email" in ai_text.lower():
-                        print("📩 Trigger: AI mentioned email → Extracting HVAC details...")
-                        details = await extract_hvac_details()
-                        print("📌 Extracted:", details)
-                        await send_hvac_email(details)
+                    lower_ai = ai_text.lower()
+
+                    if business == "hvac":
+                        # Existing HVAC behavior
+                        if "you will receive an email" in lower_ai:
+                            print("📩 Trigger: AI mentioned email → Extracting HVAC details...")
+                            details = await extract_hvac_details()
+                            print("📌 Extracted:", details)
+                            await send_hvac_email(details)
+                            await send_hvac_call_to_backend(details, shared_state)
+
+                    else:  # restaurant
+                        if (
+                            "reservation is confirmed" in lower_ai
+                            or "your reservation is confirmed" in lower_ai
+                            or "we look forward to seeing you" in lower_ai
+                        ):
+                            print("📌 Reservation Completed → Extracting details...")
+                            details = await extract_restaurant_reservation_details()
+                            print("📌 Extracted:", details)
+                            await send_restaurant_email(details)
+                            await send_restaurant_call_to_backend(details, shared_state)
+
 
             elif etype == "conversation.item.input_audio_transcription.completed":
                 caller_text = evt.get("transcript", "").strip()
@@ -543,43 +832,67 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
                     await update_dashboard(caller_text, "")
 
                     lower = caller_text.lower()
-                    emergency_keywords = [
-                        "emergency",
-                        "urgent",
-                        "gas smell",
-                        "smell gas",
-                        "burning smell",
-                        "smoke",
-                        "sparking",
-                        "fire",
-                        "carbon monoxide",
-                    ]
-                    if any(k in lower for k in emergency_keywords):
-                        print("🚨 Emergency keywords detected → transferring to agent")
 
-                        shared_state["stopped"] = True
-                        await update_dashboard("", "Transferred to agent")
+                    if business == "hvac":
+                        emergency_keywords = [
+                            "emergency",
+                            "urgent",
+                            "gas smell",
+                            "smell gas",
+                            "burning smell",
+                            "smoke",
+                            "sparking",
+                            "fire",
+                            "carbon monoxide",
+                        ]
+                        if any(k in lower for k in emergency_keywords):
+                            print("🚨 Emergency keywords detected → transferring to agent")
 
-                        transfer_msg = {
-                            "type": "response.create",
-                            "response": {
-                                "instructions": (
-                                    "This sounds urgent. Please hold on while I transfer you to a live technician."
-                                )
-                            },
-                        }
-                        await openai_ws.send(json.dumps(transfer_msg))
-                        await asyncio.sleep(1.5)
+                            shared_state["stopped"] = True
+                            await update_dashboard("", "Transferred to agent")
 
-                        await transfer_call_to_agent(shared_state)
+                            transfer_msg = {
+                                "type": "response.create",
+                                "response": {
+                                    "instructions": (
+                                        "This sounds urgent. Please hold on while I transfer you to a live technician."
+                                    )
+                                },
+                            }
+                            await openai_ws.send(json.dumps(transfer_msg))
+                            await asyncio.sleep(1.5)
 
-                        # Send emergency email even if call ended quickly
-                        details = await extract_hvac_details()
-                        details["service_type"] = "emergency"
-                        print("📩 Sending emergency HVAC email...")
-                        await send_hvac_email(details)
+                            await transfer_call_to_agent(shared_state)
 
-                        return
+                            # Send emergency email even if call ended quickly
+                            details = await extract_hvac_details()
+                            details["service_type"] = "emergency"
+                            print("📩 Sending emergency HVAC email...")
+                            await send_hvac_email(details)
+
+                            return
+
+                    else:  # restaurant
+                        if "catering" in lower:
+                            print("Caller requested catering → Initiating transfer")
+
+                            shared_state["stopped"] = True
+                            await update_dashboard("", "Transferred to agent")
+
+                            transfer_msg = {
+                                "type": "response.create",
+                                "response": {
+                                    "instructions": (
+                                        "Please hold on while I transfer you to an agent."
+                                    )
+                                },
+                            }
+                            await openai_ws.send(json.dumps(transfer_msg))
+                            await asyncio.sleep(1.5)
+
+                            await transfer_call_to_agent(shared_state)
+                            return
+
 
             elif etype == "error":
                 print("⚠ OpenAI Realtime error:", evt)
@@ -595,13 +908,30 @@ async def openai_to_twilio(openai_ws, twilio_ws, shared_state):
 
 # ===== MAIN HANDLER PER CALL =====
 async def handle_twilio(ws):
+    path=ws.path
+    print("📌 FULL PATH =", path)
+
+    parsed=urlparse(path)
+    query = parse_qs(parsed.query)
+    business=query.get("business", ["hvac"])[0]
+    from_number = query.get("from", [None])[0]
+    to_number = query.get("to", [None])[0]
+    print("Business type:", business)
+    print("From (query):", from_number)
+    print("To (query):", to_number)
+    
     shared_state = {
         "call_sid": None,
         "stream_sid": None,
         "stopped": False,
+        "business": business,
+        "from_number": from_number,
+        "to_number": to_number,
+        "call_start_time": None,
+        "duration": None,
     }
 
-    openai_ws = await connect_openai_realtime()
+    openai_ws = await connect_openai_realtime(business)
 
     try:
         await asyncio.gather(
